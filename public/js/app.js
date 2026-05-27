@@ -1,0 +1,1942 @@
+// ═══════════════════════════════════════════
+//  CAC Controller - Frontend Application
+// ═══════════════════════════════════════════
+
+// ── State ──
+let activePlayer = 1;
+let playerStates = { 1: {}, 2: {} };
+let playModes = { continuous: false, gapless: false, shuffle: 'off' };
+let library = [];
+let ws = null;
+let wsReconnectTimer = null;
+let playlistMode = { active: false, name: '', currentIndex: 0, total: 0 };
+let _selectMode = false;
+let _selectedSlots = new Set();
+
+// ── Init ──
+(async function init() {
+  // Detect language: first check server system locale as fallback
+  try {
+    const localeData = await api('/system/locale');
+    if (getStoredLanguagePref() === 'auto' && localeData.lang) {
+      // System locale used as base for auto detection
+    }
+  } catch { /* ignore */ }
+
+  setLanguage(getStoredLanguagePref());
+  renderImportFormatExample();
+  connectWebSocket();
+  loadLibrary();
+  loadPlayModes();
+
+  // Set language selector to stored preference
+  const langSel = document.getElementById('settLanguage');
+  if (langSel) langSel.value = getStoredLanguagePref();
+})();
+
+// ── WebSocket ──
+function connectWebSocket() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}`);
+  ws.onopen = () => {
+    showConnStatus(true);
+    if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  };
+  ws.onclose = () => {
+    showConnStatus(false);
+    wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+  };
+  ws.onerror = () => {};
+  ws.onmessage = (e) => handleWSMessage(JSON.parse(e.data));
+}
+
+function handleWSMessage(msg) {
+  switch (msg.type) {
+    case 'init':
+      if (msg.data.players) {
+        playerStates[1] = msg.data.players.player1 || {};
+        playerStates[2] = msg.data.players.player2 || {};
+        if (msg.data.players.playModes) {
+          playModes = msg.data.players.playModes;
+          updatePlayModeUI();
+        }
+        updatePlayerUI();
+      }
+      break;
+    case 'playerState':
+      playerStates[msg.playerId] = msg.data;
+      if (msg.playerId === activePlayer) updatePlayerUI();
+      break;
+    case 'playModeChange':
+      playModes = msg.data;
+      updatePlayModeUI();
+      break;
+    case 'continuousSwitch':
+      toast(t('playmode.continuous') + `: Player ${msg.data.from} -> ${msg.data.to}`, 'success');
+      break;
+    case 'playlistUpdate':
+      playlistMode.active = msg.data.active;
+      playlistMode.currentIndex = msg.data.currentIndex || 0;
+      playlistMode.total = msg.data.total || 0;
+      if (msg.data.currentPlayer && msg.data.currentPlayer !== activePlayer) {
+        activePlayer = msg.data.currentPlayer;
+        // Update tab UI
+        document.querySelectorAll('.player-tab').forEach(tab => {
+          tab.classList.toggle('active', parseInt(tab.dataset.player) === activePlayer);
+        });
+        _lastTrackListDisc = null;
+        updatePlayerUI._lastTrackKey = null;
+      }
+      updatePlaylistBanner();
+      updatePlayerUI();
+      break;
+    case 'playlistComplete':
+      playlistMode.active = false;
+      updatePlaylistBanner();
+      toast(t('playlists.ended'), 'success');
+      break;
+    case 'scanProgress':
+      updateScanProgress(msg.data);
+      break;
+    case 'scanComplete':
+      toast(t('scanner.complete'), 'success');
+      loadLibrary();
+      break;
+    case 'serialConnected':
+      toast(t('conn.serialConnected'), 'success');
+      break;
+    case 'serialDisconnected':
+      toast(t('conn.serialDisconnected'), 'error');
+      break;
+    case 'serialResponse':
+      appendTerminal(`< ${msg.data.raw}`);
+      break;
+  }
+}
+
+function showConnStatus(connected) {
+  const el = document.getElementById('connStatus');
+  el.textContent = connected ? t('conn.connected') : t('conn.disconnected');
+  el.className = 'conn-status ' + (connected ? 'connected' : 'disconnected');
+  setTimeout(() => { if (connected) el.classList.add('hidden'); }, 2000);
+}
+
+// ── API ──
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`/api${path}`, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API Error');
+  return data;
+}
+
+// ── Language ──
+function changeLanguage(lang) {
+  setLanguage(lang);
+  renderImportFormatExample();
+  populateLibraryFilterOptions();
+  applyLibraryFilters();
+  // Persist to server settings too
+  api('/settings', 'PUT', { language: lang }).catch(() => {});
+}
+
+// ── Play Modes ──
+async function loadPlayModes() {
+  try {
+    playModes = await api('/playmodes');
+    updatePlayModeUI();
+  } catch { /* ignore */ }
+}
+
+function updatePlayModeUI() {
+  document.getElementById('chkContinuous').checked = playModes.continuous;
+  document.getElementById('chkGapless').checked = playModes.gapless;
+  document.querySelectorAll('.shuffle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.shuffle === playModes.shuffle);
+    if (btn.dataset.shuffle === playModes.shuffle) {
+      btn.style.background = 'var(--accent-dim)';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+    } else {
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  });
+}
+
+async function setPlayMode() {
+  try {
+    await api('/playmodes', 'PUT', {
+      continuous: document.getElementById('chkContinuous').checked,
+      gapless: document.getElementById('chkGapless').checked,
+    });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function setShuffle(mode) {
+  try {
+    playModes = await api('/playmodes', 'PUT', { shuffle: mode });
+    updatePlayModeUI();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Player Controls ──
+async function playerAction(action) {
+  // In playlist mode, redirect controls to playlist API
+  if (playlistMode.active) {
+    try {
+      if (action === 'next') { await api('/playlists/next', 'POST'); return; }
+      if (action === 'previous') { await api('/playlists/previous', 'POST'); return; }
+      if (action === 'stop') { await api('/playlists/stop', 'POST'); return; }
+    } catch (err) { toast(err.message, 'error'); return; }
+  }
+  try { await api(`/player/${activePlayer}/${action}`, 'POST'); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
+async function togglePlayPause() {
+  // Pause/resume works directly on the active player, also in playlist mode
+  const state = playerStates[activePlayer];
+  try { await api(`/player/${activePlayer}/${state?.mode === 'P04' ? 'pause' : 'play'}`, 'POST'); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
+function updatePlaylistBanner() {
+  const banner = document.getElementById('playlistBanner');
+  if (playlistMode.active) {
+    banner.style.display = 'flex';
+    document.getElementById('playlistBannerName').textContent =
+      `${playlistMode.name || 'Playlist'} — ${t('player.track')} ${playlistMode.currentIndex + 1} / ${playlistMode.total}`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+async function loadDisc() {
+  const disc = parseInt(document.getElementById('discInput').value);
+  const track = parseInt(document.getElementById('trackInput').value) || 0;
+  if (!disc || disc < 1 || disc > 300) { toast(t('player.slotRange'), 'error'); return; }
+  try {
+    await api(`/player/${activePlayer}/load`, 'POST', { disc, track: track || undefined });
+    toast(`CD ${disc} ${t('player.loading')}`);
+    loadCDTracks(disc);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function onCDSelect(value) {
+  if (!value) return;
+  const slot = parseInt(value);
+  document.getElementById('discInput').value = slot;
+  loadCDTracks(slot);
+}
+
+async function loadCDTracks(slot) {
+  try {
+    const cd = await api(`/library/${slot}`);
+    if (cd?.tracks?.length > 0) showTrackList(cd);
+  } catch { /* not in library */ }
+}
+
+function showTrackList(cd) {
+  const card = document.getElementById('trackListCard');
+  const title = document.getElementById('trackListTitle');
+  const list = document.getElementById('trackList');
+  title.textContent = cd.title || `CD ${cd.slot}`;
+  card.style.display = 'block';
+  const _favTitle = t('player.favorite');
+  const _plTitle = t('favorites.addToPlaylist');
+  list.innerHTML = cd.tracks.map(tr => {
+    const dur = formatDuration(tr.duration_seconds);
+    const playing = playerStates[activePlayer]?.track === tr.track_number ? ' playing' : '';
+    return `<li class="track-item${playing}">
+      <span class="track-num" onclick="playTrack(${tr.track_number})">${tr.track_number}</span>
+      <div class="track-info" onclick="playTrack(${tr.track_number})">
+        <div class="track-title">${escHtml(tr.title || `Track ${tr.track_number}`)}</div>
+        ${tr.artist ? `<div class="track-artist">${escHtml(tr.artist)}</div>` : ''}
+      </div>
+      <span class="track-duration">${dur}</span>
+      <div class="star-rating star-rating-sm" id="trackStars-${tr.track_number}"></div>
+      <button class="btn-icon btn-fav-track" id="trackFav-${tr.track_number}" onclick="event.stopPropagation();toggleFavForTrack(${cd.slot},${tr.track_number})" title="${escAttr(_favTitle)}">&#9825;</button>
+      <button class="btn-icon btn-add-playlist" onclick="event.stopPropagation();showAddToPlaylist(${cd.slot},${tr.track_number})" title="${escAttr(_plTitle)}">+</button>
+    </li>`;
+  }).join('');
+  // Load per-track ratings, CD rating, and favorites
+  loadTrackRatings(cd.slot, cd.tracks);
+  loadCDRating(cd.slot);
+  loadTrackFavorites(cd.slot, cd.tracks);
+}
+
+async function loadTrackFavorites(slot, tracks) {
+  try {
+    const favs = await api('/favorites');
+    for (const t of tracks) {
+      const btn = document.getElementById(`trackFav-${t.track_number}`);
+      if (!btn) continue;
+      const isFav = favs.some(f => f.slot === slot && f.track_number === t.track_number);
+      btn.innerHTML = isFav ? '&#9829;' : '&#9825;';
+      btn.classList.toggle('active', isFav);
+    }
+  } catch { /* ignore */ }
+}
+
+async function loadTrackRatings(slot, tracks) {
+  try {
+    const all = await api('/ratings');
+    const slotRatings = all.filter(r => r.slot === slot && r.track_number > 0);
+    const ratingMap = {};
+    slotRatings.forEach(r => { ratingMap[r.track_number] = r.rating; });
+    for (const t of tracks) {
+      const container = document.getElementById(`trackStars-${t.track_number}`);
+      if (container) renderTrackStarsInline(container, slot, t.track_number, ratingMap[t.track_number] || 0);
+    }
+  } catch {
+    for (const t of tracks) {
+      const container = document.getElementById(`trackStars-${t.track_number}`);
+      if (container) renderTrackStarsInline(container, slot, t.track_number, 0);
+    }
+  }
+}
+
+async function playTrack(num) {
+  try { await api(`/player/${activePlayer}/track/${num}`, 'POST'); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
+function onVolumeChange(value) {
+  document.getElementById('volValue').textContent = `${Math.round(value / 255 * 100)}%`;
+  clearTimeout(onVolumeChange._t);
+  onVolumeChange._t = setTimeout(() => {
+    api(`/player/${activePlayer}/volume`, 'POST', { value: parseInt(value) }).catch(() => {});
+  }, 100);
+}
+
+function onSpeedChange(value) {
+  document.getElementById('speedValue').textContent = `${value}%`;
+  clearTimeout(onSpeedChange._t);
+  onSpeedChange._t = setTimeout(() => {
+    api(`/player/${activePlayer}/speed`, 'POST', { value: parseInt(value) }).catch(() => {});
+  }, 100);
+}
+
+// ── Time Display (local 1s tick) ──
+let _timeRef = { trackSec: 0, discSec: 0, localMs: 0, playing: false, disc: null,
+                 _lastPioneerDisc: -1, _lastPioneerTrack: -1 };
+
+function syncTimeRef(state) {
+  const newPlaying = state.mode === 'P04';
+  const pioneerDisc = (state.timeMinutes || 0) * 60 + (state.timeSeconds || 0);
+  const pioneerTrack = (state.trackTimeMinutes || 0) * 60 + (state.trackTimeSeconds || 0);
+
+  // Only resync reference when Pioneer value actually changed
+  if (pioneerDisc !== _timeRef._lastPioneerDisc || pioneerTrack !== _timeRef._lastPioneerTrack
+      || newPlaying !== _timeRef.playing) {
+    _timeRef._lastPioneerDisc = pioneerDisc;
+    _timeRef._lastPioneerTrack = pioneerTrack;
+    _timeRef.trackSec = pioneerTrack;
+    _timeRef.discSec = pioneerDisc;
+    _timeRef.localMs = Date.now();
+  }
+
+  _timeRef.playing = newPlaying;
+  _timeRef.disc = state.disc;
+}
+
+function updateTimeDisplay() {
+  let trackSec = _timeRef.trackSec;
+  let discSec = _timeRef.discSec;
+
+  if (_timeRef.playing && _timeRef.localMs > 0) {
+    const elapsed = Math.floor((Date.now() - _timeRef.localMs) / 1000);
+    trackSec += elapsed;
+    discSec += elapsed;
+  }
+
+  const time = document.getElementById('npTime');
+  time.textContent = _timeRef.localMs > 0
+    ? `${String(Math.floor(trackSec / 60)).padStart(2, '0')}:${String(trackSec % 60).padStart(2, '0')}`
+    : '--:--';
+
+  const discTime = document.getElementById('npDiscTime');
+  if (_timeRef.disc && _timeRef.localMs > 0) {
+    const elStr = `${String(Math.floor(discSec / 60)).padStart(2, '0')}:${String(discSec % 60).padStart(2, '0')}`;
+    const cd = library.find(c => c.slot === _timeRef.disc);
+    const totalSec = cd?.total_duration_seconds;
+    const totStr = totalSec
+      ? `${String(Math.floor(totalSec / 60)).padStart(2, '0')}:${String(totalSec % 60).padStart(2, '0')}`
+      : '--:--';
+    discTime.textContent = `CD ${elStr} | ${totStr}`;
+  } else {
+    discTime.textContent = '';
+  }
+}
+
+setInterval(updateTimeDisplay, 1000);
+
+// ── Player UI Update ──
+function updatePlayerUI() {
+  const state = playerStates[activePlayer];
+  if (!state) return;
+
+  const badge = document.getElementById('statusBadge');
+  const modeId = state.mode ? getModeId(state.mode) : 'unset';
+  badge.textContent = state.mode ? t(`mode.${modeId}`) : t('mode.unset');
+  badge.className = 'status-badge status-' + modeId;
+
+  // Sync time reference from server state
+  syncTimeRef(state);
+  updateTimeDisplay();
+
+  const info = document.getElementById('npInfo');
+  const discStr = state.disc ? String(state.disc).padStart(3, '0') : '---';
+  const trackStr = state.track ? String(state.track).padStart(2, '0') : '--';
+  info.textContent = `${t('player.slot')} ${discStr} | ${t('player.track')} ${trackStr}`;
+
+  const iconEl = document.getElementById('iconPlay');
+  iconEl.innerHTML = state.mode === 'P04'
+    ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>'
+    : '<polygon points="6,4 20,12 6,20"/>';
+
+  updateNowPlayingInfo(state.disc, state.track);
+  updateTrackListForPlayer(state.disc);
+
+  // Load fav/rating when track changes
+  const trackKey = `${activePlayer}:${state.disc}:${state.track}`;
+  if (updatePlayerUI._lastTrackKey !== trackKey) {
+    updatePlayerUI._lastTrackKey = trackKey;
+    loadCurrentTrackMeta();
+  }
+}
+
+// Track list for the active player's disc
+let _lastTrackListDisc = null;
+function updateTrackListForPlayer(disc) {
+  const card = document.getElementById('trackListCard');
+  if (!disc) { card.style.display = 'none'; _lastTrackListDisc = null; return; }
+
+  const discChanged = _lastTrackListDisc !== disc;
+
+  if (discChanged) {
+    _lastTrackListDisc = disc;
+    // Full rebuild only on disc change
+    const cd = library.find(c => c.slot === disc);
+    if (cd && cd.tracks?.length > 0) {
+      showTrackList(cd);
+    } else {
+      loadCDTracks(disc);
+    }
+  } else {
+    // Just update playing highlight without rebuilding
+    updateTrackListHighlight();
+  }
+}
+
+function updateTrackListHighlight() {
+  const currentTrack = playerStates[activePlayer]?.track;
+  document.querySelectorAll('#trackList .track-item').forEach(li => {
+    const num = parseInt(li.querySelector('.track-num')?.textContent);
+    li.classList.toggle('playing', num === currentTrack);
+  });
+}
+
+function updateNowPlayingInfo(disc, track) {
+  const titleEl = document.getElementById('npTitle');
+  const artistEl = document.getElementById('npArtist');
+  const artEl = document.getElementById('albumArt');
+
+  if (!disc) {
+    titleEl.textContent = t('player.noDisc');
+    artistEl.innerHTML = '&nbsp;';
+    artEl.innerHTML = '<span class="placeholder">&#9834;</span>';
+    return;
+  }
+
+  const cd = library.find(c => c.slot === disc);
+  if (cd) {
+    const trackInfo = cd.tracks?.find(tr => tr.track_number === track);
+    titleEl.textContent = trackInfo?.title || cd.title || `CD ${disc}`;
+    artistEl.textContent = trackInfo?.artist || cd.artist || '';
+    if (cd.cover_url) {
+      artEl.innerHTML = `<img src="${escHtml(cd.cover_url)}" alt="Cover" onerror="this.parentElement.innerHTML='<span class=placeholder>&#9834;</span>'">`;
+    } else {
+      artEl.innerHTML = '<span class="placeholder">&#9834;</span>';
+    }
+  } else {
+    titleEl.textContent = `CD ${disc}`;
+    artistEl.innerHTML = '&nbsp;';
+    artEl.innerHTML = '<span class="placeholder">&#9834;</span>';
+  }
+}
+
+function getModeId(code) {
+  const map = { 'P01':'park','P02':'setup','P03':'reject','P04':'play','P06':'pause','P07':'search','P08':'scan','P20':'unset','P21':'load','P22':'unload' };
+  return map[code] || 'stop';
+}
+
+// ── Player Tabs ──
+document.querySelectorAll('.player-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.player-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activePlayer = parseInt(tab.dataset.player);
+    _lastTrackListDisc = null;
+    updatePlayerUI._lastTrackKey = null;
+    updatePlayerUI();
+  });
+});
+
+// ── Navigation ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (name === 'library') loadLibrary();
+  if (name === 'playlists') loadPlaylists();
+  if (name === 'more') loadMoreData();
+}
+
+function showPageDirect(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  const pages = ['player','library','scanner','playlists','more'];
+  document.querySelectorAll('.nav-item').forEach((n, i) => {
+    n.classList.toggle('active', pages.indexOf(name) === i);
+  });
+}
+
+// ── Library ──
+async function loadLibrary() {
+  try {
+    library = await api('/library');
+    populateLibraryFilterOptions();
+    applyLibraryFilters();
+    updateCDSelect();
+    updatePlayerUI();
+  } catch (err) { console.error('Library load failed:', err); }
+}
+
+function populateLibraryFilterOptions() {
+  const genres = new Set(), artists = new Set(), years = new Set(), labels = new Set();
+  for (const cd of library) {
+    if (cd.genre) genres.add(cd.genre);
+    if (cd.artist) artists.add(cd.artist);
+    if (cd.year) { const m = cd.year.match(/(\d{4})/); if (m) years.add(m[1]); }
+    if (cd.label) labels.add(cd.label);
+  }
+  fillFilterSelect('filterGenre', t('library.allGenres'), [...genres].sort());
+  fillFilterSelect('filterArtist', t('library.allArtists'), [...artists].sort());
+  fillFilterSelect('filterYear', t('library.allYears'), [...years].sort().reverse());
+  fillFilterSelect('filterLabel', t('library.allLabels'), [...labels].sort());
+}
+
+function fillFilterSelect(id, allLabel, values) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` +
+    values.map(v => `<option value="${escAttr(v)}">${escHtml(v)}</option>`).join('');
+  if (cur && values.includes(cur)) sel.value = cur;
+}
+
+function applyLibraryFilters() {
+  const query = (document.getElementById('librarySearch')?.value || '').toLowerCase();
+  const genre = document.getElementById('filterGenre')?.value || '';
+  const artist = document.getElementById('filterArtist')?.value || '';
+  const year = document.getElementById('filterYear')?.value || '';
+  const label = document.getElementById('filterLabel')?.value || '';
+  const sort = document.getElementById('filterSort')?.value || 'slot';
+
+  let filtered = library.filter(cd => {
+    if (genre && cd.genre !== genre) return false;
+    if (artist && cd.artist !== artist) return false;
+    if (year) { const m = (cd.year||'').match(/(\d{4})/); if (!m || m[1] !== year) return false; }
+    if (label && cd.label !== label) return false;
+    if (query) {
+      const q = query;
+      if (!(cd.title||'').toLowerCase().includes(q) &&
+          !(cd.artist||'').toLowerCase().includes(q) &&
+          !(cd.genre||'').toLowerCase().includes(q) &&
+          !String(cd.slot).includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  const cmp = (a, b) => (a||'').localeCompare(b||'', 'de', { sensitivity: 'base' });
+  switch (sort) {
+    case 'title': filtered.sort((a, b) => cmp(a.title, b.title)); break;
+    case 'artist': filtered.sort((a, b) => cmp(a.artist, b.artist) || cmp(a.title, b.title)); break;
+    case 'year-desc': filtered.sort((a, b) => (b.year||'').localeCompare(a.year||'') || cmp(a.title, b.title)); break;
+    case 'year-asc': filtered.sort((a, b) => (a.year||'').localeCompare(b.year||'') || cmp(a.title, b.title)); break;
+    case 'genre': filtered.sort((a, b) => cmp(a.genre, b.genre) || cmp(a.artist, b.artist)); break;
+    default: filtered.sort((a, b) => a.slot - b.slot); break;
+  }
+
+  renderLibrary(filtered);
+}
+
+function resetLibraryFilters() {
+  document.getElementById('librarySearch').value = '';
+  document.getElementById('filterGenre').value = '';
+  document.getElementById('filterArtist').value = '';
+  document.getElementById('filterYear').value = '';
+  document.getElementById('filterLabel').value = '';
+  document.getElementById('filterSort').value = 'slot';
+  applyLibraryFilters();
+}
+
+function renderLibrary(cds) {
+  const grid = document.getElementById('cdGrid');
+  const empty = document.getElementById('libraryEmpty');
+  const count = document.getElementById('libraryCount');
+  if (count) count.textContent = t('library.countOf', cds.length, library.length);
+  if (cds.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = cds.map(cd => `
+    <div class="cd-card ${_selectMode ? 'select-mode' : ''} ${_selectedSlots.has(cd.slot) ? 'selected' : ''}"
+         onclick="${_selectMode ? `toggleCDSelection(${cd.slot})` : `showCDDetail(${cd.slot})`}">
+      ${_selectMode ? `<div class="cd-select-check">${_selectedSlots.has(cd.slot) ? '&#9745;' : '&#9744;'}</div>` : ''}
+      <div class="cd-art">
+        ${cd.cover_url
+          ? `<img src="${escHtml(cd.cover_url)}" alt="" onerror="this.parentElement.innerHTML='<span style=color:var(--text-muted);font-size:2rem>&#9834;</span>'">`
+          : `<span style="color:var(--text-muted);font-size:2rem">&#9834;</span>`}
+      </div>
+      <div class="cd-slot">Slot ${String(cd.slot).padStart(3, '0')}</div>
+      <div class="cd-name">${escHtml(cd.title || `CD ${cd.slot}`)}</div>
+      <div class="cd-artist-name">${escHtml(cd.artist || '')}</div>
+    </div>
+  `).join('');
+}
+
+function filterLibrary(query) {
+  applyLibraryFilters();
+}
+
+function updateCDSelect() {
+  const sel = document.getElementById('cdSelect');
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${t('player.selectCD')}</option>` +
+    library.map(cd => `<option value="${cd.slot}">${String(cd.slot).padStart(3,'0')} - ${escHtml(cd.title||t('library.unknown'))} ${cd.artist?'('+escHtml(cd.artist)+')':''}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+async function showCDDetail(slot) {
+  try {
+    const cd = await api(`/library/${slot}`);
+    document.getElementById('modalTitle').textContent = cd.title || `CD ${slot}`;
+    document.getElementById('modalContent').innerHTML = `
+      <div style="text-align:center;margin-bottom:16px">
+        ${cd.cover_url ? `<img src="${escHtml(cd.cover_url)}" style="width:180px;height:180px;border-radius:8px;object-fit:cover" alt="">` : ''}
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:1.1rem;font-weight:700">${escHtml(cd.title||t('library.unknown'))}</div>
+        <div style="color:var(--text-dim)">${escHtml(cd.artist||'')}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">
+          Slot ${cd.slot} | ${cd.year||''} | ${cd.total_tracks} ${t('library.tracks')} | ${formatDuration(cd.total_duration_seconds)}
+          ${cd.label ? ' | '+escHtml(cd.label) : ''}
+        </div>
+      </div>
+      <div class="btn-group" style="margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="loadAndPlayCD(${cd.slot})">${t('library.play')}</button>
+        <button class="btn btn-sm" onclick="showEditCD(${cd.slot})">${t('library.edit')}</button>
+        <button class="btn btn-sm" onclick="showEditCD(${cd.slot});setTimeout(()=>document.getElementById('coverFileInput')?.click(),100)">&#128247; Cover</button>
+        <button class="btn btn-sm" onclick="toggleFavCD(${cd.slot})">&#9825; ${t('player.favorite')}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCD(${cd.slot})">${t('library.delete')}</button>
+      </div>
+      ${cd.tracks?.length > 0 ? `<ul class="track-list">${cd.tracks.map(tr => `
+        <li class="track-item" onclick="loadAndPlayTrack(${cd.slot},${tr.track_number})">
+          <span class="track-num">${tr.track_number}</span>
+          <div class="track-info">
+            <div class="track-title">${escHtml(tr.title||`Track ${tr.track_number}`)}</div>
+            ${tr.artist?`<div class="track-artist">${escHtml(tr.artist)}</div>`:''}
+          </div>
+          <span class="track-duration">${formatDuration(tr.duration_seconds)}</span>
+        </li>`).join('')}</ul>` : ''}
+    `;
+    document.getElementById('cdDetailModal').classList.add('active');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function loadAndPlayCD(slot) {
+  closeModal('cdDetailModal');
+  document.getElementById('discInput').value = slot;
+  try {
+    await api(`/player/${activePlayer}/load`, 'POST', { disc: slot, track: 1 });
+    toast(`CD ${slot} ${t('player.loading')}`);
+    loadCDTracks(slot);
+    showPageDirect('player');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function loadAndPlayTrack(slot, track) {
+  closeModal('cdDetailModal');
+  try {
+    await api(`/player/${activePlayer}/load`, 'POST', { disc: slot, track });
+    toast(`CD ${slot}, Track ${track} ${t('player.loading')}`);
+    showPageDirect('player');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteCD(slot) {
+  if (!confirm(t('library.deleteConfirm'))) return;
+  try {
+    await api(`/library/${slot}`, 'DELETE');
+    toast(t('library.deleted'));
+    closeModal('cdDetailModal');
+    loadLibrary();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function toggleSelectMode() {
+  _selectMode = !_selectMode;
+  _selectedSlots.clear();
+  const btn = document.getElementById('btnSelectMode');
+  btn.classList.toggle('btn-primary', _selectMode);
+  // Show/hide bulk action buttons
+  ['btnSelectAll', 'btnDeselectAll', 'btnDeleteSelected', 'btnDeleteAll'].forEach(id => {
+    document.getElementById(id).style.display = _selectMode ? '' : 'none';
+  });
+  updateDeleteSelectedCount();
+  applyLibraryFilters();
+}
+
+function toggleCDSelection(slot) {
+  if (_selectedSlots.has(slot)) _selectedSlots.delete(slot);
+  else _selectedSlots.add(slot);
+  updateDeleteSelectedCount();
+  applyLibraryFilters();
+}
+
+function librarySelectAll() {
+  // Select all currently visible (filtered) CDs
+  document.querySelectorAll('#cdGrid .cd-card').forEach(card => {
+    const onclick = card.getAttribute('onclick');
+    const m = onclick.match(/toggleCDSelection\((\d+)\)/);
+    if (m) _selectedSlots.add(parseInt(m[1]));
+  });
+  updateDeleteSelectedCount();
+  applyLibraryFilters();
+}
+
+function libraryDeselectAll() {
+  _selectedSlots.clear();
+  updateDeleteSelectedCount();
+  applyLibraryFilters();
+}
+
+function updateDeleteSelectedCount() {
+  const btn = document.getElementById('btnDeleteSelected');
+  if (btn) {
+    btn.textContent = _selectedSlots.size > 0
+      ? `${t('library.deleteSelected')} (${_selectedSlots.size})`
+      : t('library.deleteSelected');
+  }
+}
+
+async function deleteSelectedCDs() {
+  if (_selectedSlots.size === 0) { toast(t('library.noneSelected'), 'error'); return; }
+  if (!confirm(`${_selectedSlots.size} ${t('library.deleteSelectedConfirm')}`)) return;
+  try {
+    const result = await api('/library/bulk-delete', 'POST', { slots: [..._selectedSlots] });
+    toast(`${result.deleted} ${t('library.deletedCount')}`, 'success');
+    _selectedSlots.clear();
+    updateDeleteSelectedCount();
+    loadLibrary();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteAllCDs() {
+  if (!confirm(t('library.deleteAllConfirm'))) return;
+  const allSlots = library.map(cd => cd.slot);
+  try {
+    const result = await api('/library/bulk-delete', 'POST', { slots: allSlots });
+    toast(`${result.deleted} ${t('library.deletedCount')}`, 'success');
+    _selectedSlots.clear();
+    if (_selectMode) toggleSelectMode();
+    loadLibrary();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function showEditCD(slot) {
+  const cd = library.find(c => c.slot === slot);
+  if (!cd) return;
+  document.getElementById('modalTitle').textContent = t('edit.title');
+  document.getElementById('modalContent').innerHTML = `
+    <div class="form-group"><label class="form-label">${t('edit.cdTitle')}</label><input type="text" class="form-input" id="editTitle" value="${escAttr(cd.title||'')}"></div>
+    <div class="form-group"><label class="form-label">${t('edit.artist')}</label><input type="text" class="form-input" id="editArtist" value="${escAttr(cd.artist||'')}"></div>
+    <div class="form-group"><label class="form-label">${t('edit.year')}</label><input type="text" class="form-input" id="editYear" value="${escAttr(cd.year||'')}"></div>
+    <div class="form-group"><label class="form-label">${t('edit.genre')}</label><input type="text" class="form-input" id="editGenre" value="${escAttr(cd.genre||'')}"></div>
+    <div class="form-group"><label class="form-label">${t('edit.cover')}</label><input type="text" class="form-input" id="editCover" value="${escAttr(cd.cover_url||'')}"></div>
+    <div class="form-group">
+      <label class="form-label">${t('cover.upload')}</label>
+      <div class="cover-upload-area" id="coverUploadArea">
+        <div class="cover-preview" id="coverPreview">
+          ${cd.cover_url ? `<img src="${escHtml(cd.cover_url)}" id="coverPreviewImg">` : `<span class="cover-placeholder">${t('cover.dragHint')}</span>`}
+        </div>
+        <input type="file" id="coverFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleCoverFile(this.files[0], ${slot})">
+        <div class="cover-upload-controls">
+          <button class="btn btn-sm" type="button" onclick="document.getElementById('coverFileInput').click()">${t('cover.selectFile')}</button>
+          <select class="form-input" id="coverFormat" style="max-width:100px;font-size:0.75rem">
+            <option value="auto">Auto</option>
+            <option value="image/jpeg">JPEG</option>
+            <option value="image/png">PNG</option>
+            <option value="image/webp">WebP</option>
+          </select>
+          <select class="form-input" id="coverSize" style="max-width:100px;font-size:0.75rem">
+            <option value="0">${t('cover.original')}</option>
+            <option value="300">300px</option>
+            <option value="500" selected>500px</option>
+            <option value="800">800px</option>
+          </select>
+        </div>
+        <div class="cover-upload-info" id="coverInfo"></div>
+        <button class="btn btn-primary btn-sm" id="coverUploadBtn" style="display:none" onclick="uploadCover(${slot})">${t('cover.upload')}</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">${t('edit.notes')}</label><textarea class="form-input" id="editNotes">${escHtml(cd.notes||'')}</textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveCD(${slot})">${t('edit.save')}</button>
+  `;
+  // Setup drag & drop
+  const area = document.getElementById('coverUploadArea');
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+  area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+  area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleCoverFile(e.dataTransfer.files[0], slot); });
+}
+
+async function saveCD(slot) {
+  try {
+    await api(`/library/${slot}`, 'PUT', {
+      title: document.getElementById('editTitle').value,
+      artist: document.getElementById('editArtist').value,
+      year: document.getElementById('editYear').value,
+      genre: document.getElementById('editGenre').value,
+      cover_url: document.getElementById('editCover').value,
+      notes: document.getElementById('editNotes').value,
+    });
+    toast(t('edit.saved'));
+    closeModal('cdDetailModal');
+    loadLibrary();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Cover Upload ──
+let _pendingCoverDataUrl = null;
+let _coverSourceImg = null; // original Image element for re-processing
+let _coverOrigType = null;
+
+function handleCoverFile(file, slot) {
+  if (!file) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    toast(t('cover.formatError'), 'error');
+    return;
+  }
+  _coverOrigType = file.type;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      _coverSourceImg = img;
+      processCoverImage();
+      // Re-process when format/size changes
+      const fmt = document.getElementById('coverFormat');
+      const sz = document.getElementById('coverSize');
+      if (fmt) fmt.onchange = processCoverImage;
+      if (sz) sz.onchange = processCoverImage;
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processCoverImage() {
+  if (!_coverSourceImg) return;
+  const img = _coverSourceImg;
+  const info = document.getElementById('coverInfo');
+
+  const targetSize = parseInt(document.getElementById('coverSize').value) || 0;
+  const formatSel = document.getElementById('coverFormat').value;
+  const outputType = formatSel === 'auto' ? (_coverOrigType || 'image/jpeg') : formatSel;
+
+  let w = img.width, h = img.height;
+  if (targetSize > 0 && (w > targetSize || h > targetSize)) {
+    const scale = targetSize / Math.max(w, h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const quality = outputType === 'image/png' ? undefined : 0.85;
+  _pendingCoverDataUrl = canvas.toDataURL(outputType, quality);
+
+  const resultSize = Math.round((_pendingCoverDataUrl.length - _pendingCoverDataUrl.indexOf(',') - 1) * 0.75);
+  info.textContent = `${t('cover.original')}: ${img.width}x${img.height}px | ${t('cover.output')}: ${w}x${h}px, ${(resultSize/1024).toFixed(0)} KB, ${outputType.split('/')[1]}`;
+
+  if (resultSize > 2 * 1024 * 1024) {
+    info.textContent += ` — ${t('cover.tooLarge')}`;
+    info.style.color = 'var(--red)';
+  } else {
+    info.style.color = '';
+  }
+
+  const preview = document.getElementById('coverPreview');
+  preview.innerHTML = `<img src="${_pendingCoverDataUrl}" id="coverPreviewImg">`;
+  document.getElementById('coverUploadBtn').style.display = '';
+}
+
+async function uploadCover(slot) {
+  if (!_pendingCoverDataUrl) return;
+  const btn = document.getElementById('coverUploadBtn');
+  btn.disabled = true;
+  btn.textContent = t('cover.uploading');
+  try {
+    const result = await api(`/library/${slot}/cover`, 'POST', { image: _pendingCoverDataUrl });
+    toast(t('cover.uploaded'));
+    document.getElementById('editCover').value = result.cover_url;
+    _pendingCoverDataUrl = null;
+    btn.style.display = 'none';
+    loadLibrary();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t('cover.upload');
+  }
+}
+
+// ── Favorites ──
+async function toggleFavCD(slot) {
+  if (!slot) { slot = playerStates[activePlayer]?.disc; }
+  if (!slot) return;
+  try {
+    const result = await api('/favorites/toggle', 'POST', { slot, track: 0 });
+    toast(result.favorite ? t('favorites.added') : t('favorites.removed'));
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function toggleFavTrack() {
+  const state = playerStates[activePlayer];
+  if (!state?.disc || !state?.track) return;
+  try {
+    const result = await api('/favorites/toggle', 'POST', { slot: state.disc, track: state.track });
+    toast(result.favorite ? t('favorites.added') : t('favorites.removed'));
+    // Update now-playing heart
+    const npBtn = document.getElementById('btnFavTrack');
+    if (npBtn) {
+      npBtn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+      npBtn.classList.toggle('active', result.favorite);
+    }
+    // Sync tracklist heart
+    const trackBtn = document.getElementById(`trackFav-${state.track}`);
+    if (trackBtn) {
+      trackBtn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+      trackBtn.classList.toggle('active', result.favorite);
+    }
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function toggleFavForTrack(slot, trackNumber) {
+  try {
+    const result = await api('/favorites/toggle', 'POST', { slot, track: trackNumber });
+    toast(result.favorite ? t('favorites.added') : t('favorites.removed'));
+    // Update tracklist heart
+    const trackBtn = document.getElementById(`trackFav-${trackNumber}`);
+    if (trackBtn) {
+      trackBtn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+      trackBtn.classList.toggle('active', result.favorite);
+    }
+    // Sync now-playing heart if same track
+    const state = playerStates[activePlayer];
+    if (state?.disc === slot && state?.track === trackNumber) {
+      const npBtn = document.getElementById('btnFavTrack');
+      if (npBtn) {
+        npBtn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+        npBtn.classList.toggle('active', result.favorite);
+      }
+    }
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function updateFavButton(slot, track) {
+  const btn = document.getElementById('btnFavTrack');
+  if (!btn || !slot || !track) { if (btn) btn.innerHTML = '&#9825;'; return; }
+  try {
+    const favs = await api('/favorites');
+    const isFav = favs.some(f => f.slot === slot && f.track_number === track);
+    btn.innerHTML = isFav ? '&#9829;' : '&#9825;';
+    btn.classList.toggle('active', isFav);
+  } catch { /* ignore */ }
+}
+
+// ── Ratings ──
+async function rateCurrentTrack(rating) {
+  const state = playerStates[activePlayer];
+  if (!state?.disc || !state?.track) return;
+  try {
+    const current = await api(`/ratings/${state.disc}/${state.track}`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot: state.disc, track: state.track, rating: newRating });
+    updateStarDisplay(newRating);
+    // Sync tracklist stars
+    const container = document.getElementById(`trackStars-${state.track}`);
+    if (container) renderTrackStarsInline(container, state.disc, state.track, newRating);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function rateTrack(slot, trackNumber, rating) {
+  try {
+    const current = await api(`/ratings/${slot}/${trackNumber}`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot, track: trackNumber, rating: newRating });
+    toast(newRating ? `${newRating} ${t('ratings.stars')}` : t('ratings.removed'));
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function updateStarDisplay(rating) {
+  const stars = document.querySelectorAll('#npStars span');
+  stars.forEach((s, i) => {
+    s.innerHTML = i < rating ? '&#9733;' : '&#9734;';
+    s.classList.toggle('active', i < rating);
+  });
+}
+
+// ── CD-level rating in tracklist header ──
+async function loadCDRating(slot) {
+  const container = document.getElementById('cdStars');
+  if (!container || !slot) { if (container) container.innerHTML = ''; return; }
+  try {
+    const r = await api(`/ratings/${slot}/0`);
+    renderCDStars(container, slot, r.rating || 0);
+  } catch { renderCDStars(container, slot, 0); }
+}
+
+function renderCDStars(container, slot, rating) {
+  container.innerHTML = Array.from({length: 5}, (_, i) => {
+    const filled = i < rating;
+    return `<span class="${filled ? 'active' : ''}" onclick="event.stopPropagation();rateCDFromList(${slot},${i+1})">${filled ? '&#9733;' : '&#9734;'}</span>`;
+  }).join('');
+}
+
+async function rateCDFromList(slot, rating) {
+  try {
+    const current = await api(`/ratings/${slot}/0`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot, track: 0, rating: newRating });
+    renderCDStars(document.getElementById('cdStars'), slot, newRating);
+    toast(newRating ? `CD: ${newRating} ${t('ratings.stars')}` : t('ratings.removed'));
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Per-track rating in tracklist ──
+async function rateTrackInList(slot, trackNumber, rating) {
+  try {
+    const current = await api(`/ratings/${slot}/${trackNumber}`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot, track: trackNumber, rating: newRating });
+    // Update the inline stars
+    const container = document.getElementById(`trackStars-${trackNumber}`);
+    if (container) renderTrackStarsInline(container, slot, trackNumber, newRating);
+    toast(newRating ? `${newRating} ${t('ratings.stars')}` : t('ratings.removed'));
+    // Update now-playing stars if this is the current track
+    const state = playerStates[activePlayer];
+    if (state?.disc === slot && state?.track === trackNumber) updateStarDisplay(newRating);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderTrackStarsInline(container, slot, trackNumber, rating) {
+  container.innerHTML = Array.from({length: 5}, (_, i) => {
+    const filled = i < rating;
+    return `<span class="${filled ? 'active' : ''}" onclick="event.stopPropagation();rateTrackInList(${slot},${trackNumber},${i+1})">${filled ? '&#9733;' : '&#9734;'}</span>`;
+  }).join('');
+}
+
+async function loadCurrentTrackMeta() {
+  const state = playerStates[activePlayer];
+  if (!state?.disc || !state?.track) {
+    updateStarDisplay(0);
+    updateFavButton(null, null);
+    return;
+  }
+  try {
+    const r = await api(`/ratings/${state.disc}/${state.track}`);
+    updateStarDisplay(r.rating || 0);
+  } catch { updateStarDisplay(0); }
+  updateFavButton(state.disc, state.track);
+}
+
+// ── Scanner ──
+async function scanSingleCD() {
+  const slot = parseInt(document.getElementById('scanSlot').value);
+  if (!slot) { toast(t('scanner.enterSlot'), 'error'); return; }
+  try {
+    const result = await api('/scanner/scan', 'POST', { slot });
+    toast(`CD ${slot}: ${result.totalTracks || '?'} ${t('scanner.tracksScanned')}`);
+    loadLibrary();
+    // Pre-fill MusicBrainz search with slot + TOC filter data
+    const mbSlot = document.getElementById('mbSlot');
+    const mbQuery = document.getElementById('mbQuery');
+    if (mbSlot) mbSlot.value = slot;
+    if (mbQuery) mbQuery.value = '';
+    // Fill TOC filter fields
+    if (result.totalTracks) {
+      document.getElementById('mbTracks').value = result.totalTracks;
+      const sec = result.totalSeconds || 0;
+      document.getElementById('mbDuration').value = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+      document.getElementById('mbTocFilter').style.display = 'flex';
+    }
+    // Highlight the MB search section with red border and scroll to it
+    const mbCard = document.getElementById('mbCard');
+    if (mbCard) {
+      mbCard.style.outline = '3px solid var(--red)';
+      mbCard.style.outlineOffset = '2px';
+      mbCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { mbCard.style.outline = ''; mbCard.style.outlineOffset = ''; }, 8000);
+    }
+    if (mbQuery) setTimeout(() => mbQuery.focus(), 500);
+    toast(`Slot ${slot}: ${result.totalTracks} Tracks — ${t('scanner.enterAlbumArtist')}`, 'error');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function scanRange() {
+  const start = parseInt(document.getElementById('scanStart').value) || 1;
+  const end = parseInt(document.getElementById('scanEnd').value) || 300;
+  try {
+    await api('/scanner/scan', 'POST', { startSlot: start, endSlot: end });
+    document.getElementById('scanProgress').style.display = 'block';
+    toast(t('scanner.started'));
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function abortScan() {
+  try { await api('/scanner/abort', 'POST'); toast(t('scanner.aborting')); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
+function translateScanMessage(msg) {
+  if (typeof msg === 'string') return msg;
+  if (!msg || !msg.key) return '';
+  const k = msg.key;
+  if (k === 'scan.loading') return `${t('scan.loading')} CD ${msg.slot}...`;
+  if (k === 'scan.reading') return `${t('scan.reading')} CD ${msg.slot}...`;
+  if (k === 'scan.empty') return `CD ${msg.slot}: ${t('scan.empty')}`;
+  if (k === 'scan.scanned') return `CD ${msg.slot}: ${msg.totalTracks} Tracks, ${msg.duration} — ${t('scan.assignMB')}`;
+  if (k === 'scan.error') return `CD ${msg.slot}: ${t('scan.errorPrefix')} ${msg.error}`;
+  if (k === 'scan.started') return t('scan.started');
+  if (k === 'scan.aborted') return t('scan.aborted');
+  if (k === 'scan.complete') return `${t('scan.completePrefix')} ${msg.count} CDs`;
+  if (k === 'scan.lookup') return `${t('scan.lookup')} CD ${msg.slot}...`;
+  if (k === 'scan.lookupFailed') return `${t('scan.lookupFailed')}: ${msg.error}`;
+  if (k === 'scan.applying') return `${t('scan.applying')} CD ${msg.slot}...`;
+  if (k === 'scan.applied') return `${t('scan.applied')} CD ${msg.slot}`;
+  if (k === 'scan.applyFailed') return `${t('scan.applyFailed')}: ${msg.error}`;
+  return JSON.stringify(msg);
+}
+
+function updateScanProgress(data) {
+  document.getElementById('scanProgress').style.display = 'block';
+  const pct = data.total > 0 ? (data.current / data.total * 100) : 0;
+  document.getElementById('scanFill').style.width = `${pct}%`;
+  document.getElementById('scanText').textContent = translateScanMessage(data.message) || `${data.current}/${data.total}`;
+}
+
+// ── MusicBrainz ──
+async function searchMusicBrainz() {
+  const slot = parseInt(document.getElementById('mbSlot').value);
+  let query = document.getElementById('mbQuery').value.trim();
+  if (!query) { toast(t('mb.enterQuery'), 'error'); return; }
+
+  // Append TOC track count filter if available
+  const tocTracks = parseInt(document.getElementById('mbTracks')?.value);
+  if (tocTracks) query += ` AND tracks:${tocTracks}`;
+
+  const container = document.getElementById('mbResults');
+  const searchBtn = document.querySelector('#mbCard .btn-primary');
+  container.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:16px">
+    <div style="margin-bottom:8px;font-size:1.2rem" class="spinner">&#9881;</div>
+    ${t('mb.querying')}
+  </div>`;
+  if (searchBtn) { searchBtn.disabled = true; searchBtn.textContent = t('mb.searching'); }
+  try {
+    let results = await api(`/musicbrainz/search?q=${encodeURIComponent(query)}`);
+    if (results.length === 0) {
+      container.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:16px">${t('mb.noResults')}</div>`;
+      return;
+    }
+    // Sort by duration proximity to TOC if available
+    const tocDuration = document.getElementById('mbDuration')?.value;
+    if (tocDuration) {
+      const parts = tocDuration.split(':');
+      const tocSec = parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
+      if (tocSec > 0) {
+        results.sort((a, b) => {
+          const diffA = Math.abs((a.cd.total_duration_seconds || 0) - tocSec);
+          const diffB = Math.abs((b.cd.total_duration_seconds || 0) - tocSec);
+          return diffA - diffB;
+        });
+      }
+    }
+    container.innerHTML = results.map((r, idx) => {
+      const dur = r.cd.total_duration_seconds
+        ? `${Math.floor(r.cd.total_duration_seconds / 60)}:${String(r.cd.total_duration_seconds % 60).padStart(2, '0')}`
+        : '';
+      // Duration match indicator
+      let durMatch = '';
+      if (tocDuration && r.cd.total_duration_seconds) {
+        const parts2 = tocDuration.split(':');
+        const tocSec2 = parseInt(parts2[0]) * 60 + parseInt(parts2[1] || 0);
+        const diff = Math.abs(r.cd.total_duration_seconds - tocSec2);
+        if (diff <= 10) durMatch = `<span style="color:var(--green)" title="${escAttr(t('mb.durationExact'))}">&#10004;</span> `;
+        else if (diff <= 60) durMatch = `<span style="color:#f5a623" title="${escAttr(t('mb.durationClose'))}">&#9888;</span> `;
+        else durMatch = `<span style="color:var(--red)" title="${escAttr(t('mb.durationFar'))}">&#10008;</span> `;
+      }
+      const meta = [
+        r.cd.year || r.cd.date || '',
+        r.cd.country || '',
+        r.cd.format || 'CD',
+        r.cd.label || '',
+        r.cd.barcode || '',
+        dur ? `${durMatch}${dur}` : '',
+      ].filter(Boolean).join(' · ');
+
+      const trackListHtml = r.tracks.length > 0
+        ? `<div class="mb-tracklist" id="mbTracks-${idx}" style="display:none;margin-top:8px">
+            <table style="width:100%;font-size:0.7rem;border-collapse:collapse">
+              ${r.tracks.map(tr => `<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:3px 6px;color:var(--text-muted);width:24px;text-align:right">${tr.track_number}</td>
+                <td style="padding:3px 6px">${escHtml(tr.title)}</td>
+                <td style="padding:3px 6px;color:var(--text-dim);white-space:nowrap">${tr.artist !== r.cd.artist ? escHtml(tr.artist) : ''}</td>
+                <td style="padding:3px 6px;color:var(--text-muted);text-align:right;white-space:nowrap">${tr.duration_seconds ? formatDuration(tr.duration_seconds) : ''}</td>
+              </tr>`).join('')}
+            </table>
+          </div>`
+        : '';
+
+      return `<div class="card" style="margin-bottom:10px;border:1px solid var(--border)">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex-shrink:0;width:80px;height:80px;border-radius:6px;overflow:hidden;background:var(--bg)">
+            ${r.cd.cover_url
+              ? `<img src="${escHtml(r.cd.cover_url)}" style="width:80px;height:80px;object-fit:cover" alt="" onerror="this.parentElement.innerHTML='<span style=display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:2rem>&#9834;</span>'">`
+              : `<span style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:2rem">&#9834;</span>`}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:0.9rem;margin-bottom:2px">${escHtml(r.cd.title)}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:2px">${escHtml(r.cd.artist)}</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px">${meta}</div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px">${r.tracks.length} Tracks${r.score ? ` · Score: ${r.score}` : ''}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="applyMBResult(${slot||0},'${r.releaseId}')">${slot ? t('mb.apply') : t('mb.details')}</button>
+              ${r.tracks.length > 0 ? `<button class="btn btn-sm" onclick="toggleMBTracks(${idx})">${t('mb.tracklist')}</button>` : ''}
+            </div>
+          </div>
+        </div>
+        ${trackListHtml}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `<div style="color:var(--red);text-align:center;padding:16px">${escHtml(err.message)}</div>`;
+  } finally {
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.textContent = t('mb.search'); }
+  }
+}
+
+function toggleMBTracks(idx) {
+  const el = document.getElementById(`mbTracks-${idx}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function applyMBResult(slot, releaseId) {
+  if (!slot) { slot = parseInt(prompt(t('mb.enterSlot'))); if (!slot) return; }
+  try {
+    await api(`/musicbrainz/apply/${slot}`, 'POST', { releaseId });
+    toast(`${t('mb.applied')} ${slot}`);
+    loadLibrary();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderImportFormatExample() {
+  const pre = document.getElementById('importFormatPre');
+  const also = document.getElementById('importFormatAlso');
+  if (!pre) return;
+  pre.textContent = `[
+  {
+    "cd_number": 1,          // ${t('import.formatSlot')}
+    "disc_id": "a80b520a",   // ${t('import.formatDiscId')}
+    "album": "Album",        // ${t('import.formatAlbum')}
+    "album_artist": "Artist",
+    "release_date": "01.01.1990",  // ${t('import.formatDate')}
+    "album_length": "45:30",       // ${t('import.formatDuration')}
+    "tracks": [
+      {
+        "track_number": 1,
+        "track_title": "Title",
+        "track_artist": "Artist",
+        "track_length": "3:45"     // ${t('import.formatTrackDuration')}
+      }
+    ]
+  }
+]`;
+  if (also) also.innerHTML = `${t('import.formatAlsoSupported')} <code>{cds:[...]}</code>, Objekt/Object mit Slot-Keys, <code>title/artist/year</code> ${t('import.formatFieldNames')}.`;
+}
+
+// ── JSON Import ──
+let _importData = []; // parsed CDs ready for preview
+
+// UTF-8 mojibake repair map (double-encoded UTF-8 sequences)
+const _mojibakeMap = [
+  [/\u00e2\u0080\u0099/g, '\u2019'],  // '
+  [/\u00e2\u0080\u0098/g, '\u2018'],  // '
+  [/\u00e2\u0080\u009c/g, '\u201c'],  // "
+  [/\u00e2\u0080\u009d/g, '\u201d'],  // "
+  [/\u00e2\u0080\u0093/g, '\u2013'],  // –
+  [/\u00e2\u0080\u0094/g, '\u2014'],  // —
+  [/\u00e2\u0080\u00a6/g, '\u2026'],  // …
+  [/\u00c3\u00a4/g, 'ä'], [/\u00c3\u0084/g, 'Ä'],
+  [/\u00c3\u00b6/g, 'ö'], [/\u00c3\u0096/g, 'Ö'],
+  [/\u00c3\u00bc/g, 'ü'], [/\u00c3\u009c/g, 'Ü'],
+  [/\u00c3\u009f/g, 'ß'],
+  [/\u00c3\u00a9/g, 'é'], [/\u00c3\u0089/g, 'É'],
+  [/\u00c3\u00a8/g, 'è'], [/\u00c3\u00a0/g, 'à'],
+  [/\u00c3\u00b1/g, 'ñ'], [/\u00c3\u00a7/g, 'ç'],
+  [/\u00c3\u00ae/g, 'î'], [/\u00c3\u00b4/g, 'ô'],
+  [/\u00c3\u00ab/g, 'ë'], [/\u00c3\u00af/g, 'ï'],
+  [/\u00c3\u00a1/g, 'á'], [/\u00c3\u00ad/g, 'í'],
+  [/\u00c3\u00ba/g, 'ú'], [/\u00c3\u00b3/g, 'ó'],
+];
+
+// Additional broken sequences from latin1 misread as UTF-8
+const _mojibakeMap2 = [
+  [/â€™/g, '\u2019'], [/â€˜/g, '\u2018'],
+  [/â€œ/g, '\u201c'], [/â€\u009d/g, '\u201d'], [/â€/g, '\u201c'],
+  [/â€"/g, '\u2013'], [/â€"/g, '\u2014'],
+  [/â€¦/g, '\u2026'],
+  [/Ã¤/g, 'ä'], [/Ã„/g, 'Ä'],
+  [/Ã¶/g, 'ö'], [/Ã–/g, 'Ö'],
+  [/Ã¼/g, 'ü'], [/Ãœ/g, 'Ü'],
+  [/ÃŸ/g, 'ß'],
+  [/Ã©/g, 'é'], [/Ã‰/g, 'É'],
+  [/Ã¨/g, 'è'], [/Ã /g, 'à'],
+  [/Ã±/g, 'ñ'], [/Ã§/g, 'ç'],
+  [/Ã®/g, 'î'], [/Ã´/g, 'ô'],
+  [/Ã«/g, 'ë'], [/Ã¯/g, 'ï'],
+  [/Ã¡/g, 'á'], [/Ã­/g, 'í'],
+  [/Ãº/g, 'ú'], [/Ã³/g, 'ó'],
+];
+
+function fixMojibake(str) {
+  if (typeof str !== 'string') return str;
+  for (const [pat, rep] of _mojibakeMap) str = str.replace(pat, rep);
+  for (const [pat, rep] of _mojibakeMap2) str = str.replace(pat, rep);
+  return str;
+}
+
+function fixMojibakeDeep(obj) {
+  if (typeof obj === 'string') return fixMojibake(obj);
+  if (Array.isArray(obj)) return obj.map(fixMojibakeDeep);
+  if (obj && typeof obj === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = fixMojibakeDeep(v);
+    return out;
+  }
+  return obj;
+}
+
+function hasMojibake(str) {
+  if (typeof str !== 'string') return false;
+  return /Ã[¤öüÖÄÜß©é]|â€[™˜œ—–¦]|\u00c3[\u0080-\u00bf]|\u00e2\u0080/.test(str);
+}
+
+// Validate a single CD entry and return status badges
+function validateImportCD(cd) {
+  const issues = [];
+  const title = cd.title || cd.album || '';
+  const artist = cd.artist || cd.album_artist || '';
+  const year = cd.year || cd.release_date || '';
+  const slot = cd.slot || cd.cd_number;
+
+  // Check invalid/missing slot
+  if (!slot || slot < 1 || slot > 500) {
+    issues.push({ type: 'err', key: 'invalidSlot' });
+  }
+  // Check encoding
+  if (hasMojibake(title) || hasMojibake(artist)) {
+    issues.push({ type: 'warn', key: 'encoding' });
+  }
+  // Check placeholder titles
+  if (/^\+{3,}|Album-Titel|^Titel$|^Title$/i.test(title)) {
+    issues.push({ type: 'err', key: 'placeholder' });
+  }
+  // Check missing title
+  if (!title.trim()) {
+    issues.push({ type: 'err', key: 'missingData' });
+  }
+  // Check missing artist
+  if (!artist.trim()) {
+    issues.push({ type: 'warn', key: 'missingData' });
+  }
+  // Check invalid dates
+  if (/^TT\.MM\.|Unbekannt|^unknown$/i.test(year)) {
+    issues.push({ type: 'warn', key: 'invalidDate' });
+  }
+  // Check invalid durations
+  const dur = cd.album_length || '';
+  if (/^\?\?:\?\?$|^MM:SS$/.test(dur)) {
+    issues.push({ type: 'warn', key: 'invalidDuration' });
+  }
+  // Check tracks with invalid durations
+  if (cd.tracks) {
+    const badTracks = cd.tracks.some(t => /^\?\?:\?\?$|^MM:SS$/.test(t.track_length || ''));
+    if (badTracks) issues.push({ type: 'warn', key: 'invalidDuration' });
+  }
+
+  return issues;
+}
+
+function parseCDList(data) {
+  let cdList = [];
+  if (Array.isArray(data)) {
+    cdList = data;
+  } else if (data.cds && Array.isArray(data.cds)) {
+    cdList = data.cds;
+  } else if (typeof data === 'object') {
+    for (const [key, val] of Object.entries(data)) {
+      if (typeof val === 'object' && val !== null) {
+        cdList.push({ ...val, slot: val.slot || val.cd_number || parseInt(key) || undefined });
+      }
+    }
+  }
+  return cdList;
+}
+
+async function handleJSONImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('importStatus');
+  statusEl.style.color = '';
+
+  // Check file size (10 MB)
+  if (file.size > 10 * 1024 * 1024) {
+    statusEl.textContent = t('import.fileTooLarge');
+    statusEl.style.color = 'var(--red)';
+    toast(t('import.fileTooLarge'), 'error');
+    input.value = '';
+    return;
+  }
+
+  statusEl.textContent = t('import.importing');
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const cdList = parseCDList(data);
+
+    if (cdList.length === 0) {
+      statusEl.textContent = t('import.noData');
+      statusEl.style.color = 'var(--red)';
+      input.value = '';
+      return;
+    }
+
+    // Normalize each CD for preview
+    _importData = cdList.map(cd => {
+      const slot = cd.slot || cd.cd_number || cd.slotNumber || cd.nr;
+      return {
+        _selected: true,
+        _original: cd,
+        slot: typeof slot === 'string' ? parseInt(slot) : slot,
+        title: cd.title || cd.album || cd.name || '',
+        artist: cd.artist || cd.album_artist || cd.albumArtist || '',
+        year: cd.year || cd.release_date || cd.releaseDate || '',
+        genre: cd.genre || '',
+        trackCount: cd.tracks?.length || cd.total_tracks || 0,
+        duration: cd.album_length || '',
+        issues: [],
+      };
+    });
+
+    // Validate
+    _importData.forEach(cd => {
+      cd.issues = validateImportCD({ ...cd._original, ...cd });
+    });
+
+    renderImportPreview();
+    statusEl.textContent = '';
+  } catch (err) {
+    statusEl.textContent = `${t('import.parseError')}: ${err.message}`;
+    statusEl.style.color = 'var(--red)';
+    toast(t('import.parseError'), 'error');
+  }
+  input.value = '';
+}
+
+function renderImportPreview() {
+  const preview = document.getElementById('importPreview');
+  const selectArea = document.getElementById('importSelectArea');
+  preview.style.display = 'block';
+  selectArea.style.display = 'none';
+
+  // Stats
+  const total = _importData.length;
+  const warns = _importData.filter(cd => cd.issues.some(i => i.type === 'warn')).length;
+  const errs = _importData.filter(cd => cd.issues.some(i => i.type === 'err')).length;
+  const ok = total - warns - errs + _importData.filter(cd => cd.issues.some(i => i.type === 'warn') && cd.issues.some(i => i.type === 'err')).length;
+
+  document.getElementById('importStats').innerHTML =
+    `<strong>${total}</strong> ${t('import.cdsFound')}` +
+    (warns ? ` &middot; <span class="stat-warn">${warns} ${t('import.warnings')}</span>` : '') +
+    (errs ? ` &middot; <span class="stat-err">${errs} ${t('import.errors')}</span>` : '');
+
+  // Table
+  const tbody = document.getElementById('importTableBody');
+  tbody.innerHTML = _importData.map((cd, idx) => {
+    const rowClass = cd.issues.some(i => i.type === 'err') ? 'import-row-error' :
+                     cd.issues.some(i => i.type === 'warn') ? 'import-row-warning' : '';
+    const badges = cd.issues.map(i => {
+      const cls = i.type === 'err' ? 'import-badge-err' : 'import-badge-warn';
+      const label = t(`import.${i.key}`) || i.key;
+      return `<span class="import-badge ${cls}">${escHtml(label)}</span>`;
+    }).join('');
+
+    return `<tr class="${rowClass}" data-import-idx="${idx}">
+      <td><input type="checkbox" ${cd._selected ? 'checked' : ''} onchange="_importData[${idx}]._selected=this.checked"></td>
+      <td class="import-slot-cell">
+        <input type="number" class="import-slot-input" value="${cd.slot || ''}" min="1" max="500"
+          onchange="importSlotChanged(${idx},this.value)" title="${escAttr(t('import.changeSlot'))}">
+      </td>
+      <td contenteditable="true" data-field="title" oninput="importFieldChanged(${idx},'title',this.textContent)">${escHtml(cd.title)}</td>
+      <td contenteditable="true" data-field="artist" oninput="importFieldChanged(${idx},'artist',this.textContent)">${escHtml(cd.artist)}</td>
+      <td contenteditable="true" data-field="year" oninput="importFieldChanged(${idx},'year',this.textContent)">${escHtml(cd.year)}</td>
+      <td>${cd.trackCount}</td>
+      <td>${badges || `<span class="import-badge import-badge-ok">${t('import.ok')}</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function importFieldChanged(idx, field, value) {
+  _importData[idx][field] = value;
+  // Update original too so import sends corrected data
+  const cd = _importData[idx]._original;
+  if (field === 'title') { cd.title = value; cd.album = value; }
+  if (field === 'artist') { cd.artist = value; cd.album_artist = value; }
+  if (field === 'year') { cd.year = value; cd.release_date = value; }
+  // Re-validate
+  _importData[idx].issues = validateImportCD({ ...cd, ..._importData[idx] });
+}
+
+function importSlotChanged(idx, value) {
+  const newSlot = parseInt(value);
+  if (!newSlot || newSlot < 1 || newSlot > 500) return;
+
+  // Check for duplicate slot
+  const duplicate = _importData.find((cd, i) => i !== idx && cd.slot === newSlot);
+  if (duplicate) {
+    // Swap: give the other CD this CD's old slot
+    const oldSlot = _importData[idx].slot;
+    duplicate.slot = oldSlot;
+    duplicate._original.cd_number = oldSlot;
+    duplicate._original.slot = oldSlot;
+    // Update the swapped row's input visually
+    const otherRow = document.querySelector(`tr[data-import-idx="${_importData.indexOf(duplicate)}"] .import-slot-input`);
+    if (otherRow) otherRow.value = oldSlot;
+    toast(`Slot ${newSlot} \u2194 ${oldSlot} ${t('import.slotsSwapped')}`, 'info');
+  }
+
+  _importData[idx].slot = newSlot;
+  _importData[idx]._original.cd_number = newSlot;
+  _importData[idx]._original.slot = newSlot;
+}
+
+function importSelectAll(checked) {
+  _importData.forEach(cd => cd._selected = checked);
+  document.getElementById('importCheckAll').checked = checked;
+  document.querySelectorAll('#importTableBody input[type=checkbox]').forEach(cb => cb.checked = checked);
+}
+
+function importFixEncoding() {
+  let fixed = 0;
+  _importData.forEach((cd, idx) => {
+    const origTitle = cd.title;
+    const origArtist = cd.artist;
+    cd.title = fixMojibake(cd.title);
+    cd.artist = fixMojibake(cd.artist);
+    cd.year = fixMojibake(cd.year);
+    cd.genre = fixMojibake(cd.genre);
+    cd._original = fixMojibakeDeep(cd._original);
+    if (cd.title !== origTitle || cd.artist !== origArtist) fixed++;
+    cd.issues = validateImportCD({ ...cd._original, ...cd });
+  });
+  renderImportPreview();
+  toast(`${t('import.encodingFixed')}: ${fixed} CDs`, 'success');
+}
+
+function cancelImportPreview() {
+  _importData = [];
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importSelectArea').style.display = '';
+  document.getElementById('importStatus').textContent = '';
+}
+
+async function executeImport() {
+  const selected = _importData.filter(cd => cd._selected);
+  if (selected.length === 0) { toast(t('import.noData'), 'error'); return; }
+
+  const statusEl = document.getElementById('importStatus');
+  statusEl.textContent = t('import.importing');
+  statusEl.style.color = '';
+
+  // Build the data array from original objects (with any edits applied)
+  const payload = selected.map(cd => cd._original);
+
+  try {
+    const result = await api('/import', 'POST', payload);
+    statusEl.textContent = `${result.imported} ${t('import.success')}`;
+    statusEl.style.color = 'var(--green)';
+    toast(`${result.imported} ${t('import.success')}`, 'success');
+    cancelImportPreview();
+    loadLibrary();
+  } catch (err) {
+    statusEl.textContent = `${t('import.error')}: ${err.message}`;
+    statusEl.style.color = 'var(--red)';
+    toast(t('import.error'), 'error');
+  }
+}
+
+// ── Playlists ──
+async function loadPlaylists() {
+  try {
+    const playlists = await api('/playlists');
+    const container = document.getElementById('playlistList');
+    const empty = document.getElementById('playlistEmpty');
+    if (playlists.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    container.innerHTML = playlists.map(pl => `
+      <div class="card" style="cursor:pointer" onclick="showPlaylistDetail(${pl.id})">
+        <div style="font-weight:600">${escHtml(pl.name)}</div>
+        <div style="font-size:0.75rem;color:var(--text-dim)">${escHtml(pl.description||'')}</div>
+      </div>
+    `).join('');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function showCreatePlaylist() { document.getElementById('playlistModal').classList.add('active'); }
+
+async function createPlaylist() {
+  const name = document.getElementById('plName').value.trim();
+  if (!name) { toast(t('playlists.enterName'), 'error'); return; }
+  try {
+    await api('/playlists', 'POST', { name, description: document.getElementById('plDesc').value.trim() });
+    closeModal('playlistModal');
+    document.getElementById('plName').value = '';
+    document.getElementById('plDesc').value = '';
+    toast(t('playlists.created'));
+    loadPlaylists();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function showPlaylistDetail(id) {
+  try {
+    const pl = await api(`/playlists/${id}`);
+    document.getElementById('modalTitle').textContent = pl.name;
+    document.getElementById('modalContent').innerHTML = `
+      <div style="color:var(--text-dim);font-size:0.85rem;margin-bottom:12px">${escHtml(pl.description||'')}</div>
+      <div class="btn-group" style="margin-bottom:12px">
+        ${pl.items?.length > 0 ? `<button class="btn btn-primary btn-sm" onclick="playPlaylist(${id})">&#9654; ${t('playlists.playAll')}</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${id})">${t('playlists.delete')}</button>
+      </div>
+      ${pl.items?.length > 0 ? `<ul class="track-list">${pl.items.map(item => `
+        <li class="track-item">
+          <span class="track-num" onclick="loadAndPlayTrack(${item.slot},${item.track_number})">${item.slot}</span>
+          <div class="track-info" onclick="loadAndPlayTrack(${item.slot},${item.track_number})">
+            <div class="track-title">${escHtml(item.track_title||item.cd_title||`CD ${item.slot}`)}</div>
+            <div class="track-artist">${escHtml(item.track_artist||item.cd_artist||'')}</div>
+          </div>
+          <button class="btn-icon btn-remove-item" onclick="event.stopPropagation();removePlaylistItem(${id},${item.id})" title="${escAttr(t('playlists.remove'))}">&times;</button>
+        </li>`).join('')}</ul>` : `<div class="empty-state"><p>${t('playlists.emptyList')}</p></div>`}
+    `;
+    document.getElementById('cdDetailModal').classList.add('active');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function playPlaylist(id) {
+  try {
+    const pl = await api(`/playlists/${id}`);
+    playlistMode.name = pl.name || 'Playlist';
+    await api(`/playlists/${id}/play`, 'POST');
+    closeModal('cdDetailModal');
+    showPageDirect('player');
+    toast(`Playlist "${pl.name}" wird abgespielt`);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function stopPlaylist() {
+  try {
+    await api('/playlists/stop', 'POST');
+    playlistMode.active = false;
+    updatePlaylistBanner();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function removePlaylistItem(playlistId, itemId) {
+  try {
+    await api(`/playlists/${playlistId}/items/${itemId}`, 'DELETE');
+    showPlaylistDetail(playlistId);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deletePlaylist(id) {
+  if (!confirm(t('playlists.deleteConfirm'))) return;
+  try {
+    await api(`/playlists/${id}`, 'DELETE');
+    closeModal('cdDetailModal');
+    toast(t('playlists.deleted'));
+    loadPlaylists();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function showAddToPlaylist(slot, trackNumber) {
+  try {
+    const playlists = await api('/playlists');
+    if (playlists.length === 0) {
+      toast(t('playlists.createFirst'), 'error');
+      return;
+    }
+    document.getElementById('modalTitle').textContent = t('playlists.addTo');
+    document.getElementById('modalContent').innerHTML = playlists.map(pl => `
+      <div class="card" style="cursor:pointer;margin-bottom:8px" onclick="addToPlaylist(${pl.id},${slot},${trackNumber})">
+        <div style="font-weight:600">${escHtml(pl.name)}</div>
+        <div style="font-size:0.75rem;color:var(--text-dim)">${escHtml(pl.description||'')}</div>
+      </div>
+    `).join('');
+    document.getElementById('cdDetailModal').classList.add('active');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function addToPlaylist(playlistId, slot, trackNumber) {
+  try {
+    await api(`/playlists/${playlistId}/items`, 'POST', { slot, track: trackNumber });
+    toast(t('playlists.added'));
+    closeModal('cdDetailModal');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── More ──
+function showMoreTab(name) {
+  document.querySelectorAll('.more-section').forEach(s => s.style.display = 'none');
+  document.getElementById(`section-${name}`).style.display = 'block';
+  document.querySelectorAll('#page-more .tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (name === 'history') loadHistory();
+  if (name === 'favorites') loadFavorites();
+  if (name === 'ratings') loadRatings();
+  if (name === 'stats') loadStats();
+  if (name === 'settings') loadSettings();
+}
+
+function loadMoreData() { loadHistory(); }
+
+async function loadHistory() {
+  try {
+    const history = await api('/history?limit=50');
+    const container = document.getElementById('historyList');
+    if (history.length === 0) { container.innerHTML = `<div class="empty-state"><p>${t('history.empty')}</p></div>`; return; }
+    container.innerHTML = history.map(h => `
+      <div class="list-item" onclick="loadAndPlayTrack(${h.slot},${h.track_number})" style="cursor:pointer">
+        <div class="slot-badge">${h.slot}</div>
+        <div class="list-meta">
+          <div class="list-primary">${escHtml(h.track_title||h.cd_title||`CD ${h.slot}`)}</div>
+          <div class="list-secondary">${escHtml(h.cd_artist||'')} | Track ${h.track_number} | ${formatDate(h.played_at)}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) { console.error(err); }
+}
+
+async function clearHistory() {
+  if (!confirm(t('history.clearConfirm'))) return;
+  try { await api('/history', 'DELETE'); toast(t('history.cleared')); loadHistory(); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
+async function loadFavorites() {
+  try {
+    const favs = await api('/favorites');
+    const container = document.getElementById('favoritesList');
+    if (favs.length === 0) { container.innerHTML = `<div class="empty-state"><p>${t('favorites.empty')}</p></div>`; return; }
+    container.innerHTML = favs.map(f => {
+      const isTrack = f.track_number > 0;
+      const title = isTrack ? (f.track_title || `Track ${f.track_number}`) : (f.cd_title || `CD ${f.slot}`);
+      const sub = isTrack
+        ? `${escHtml(f.cd_title||`CD ${f.slot}`)} | Track ${f.track_number} | ${escHtml(f.cd_artist||'')}`
+        : escHtml(f.cd_artist||'');
+      return `<div class="list-item" style="cursor:pointer">
+        <div class="slot-badge" onclick="loadAndPlayTrack(${f.slot},${f.track_number||1})">${f.slot}</div>
+        <div class="list-meta" onclick="loadAndPlayTrack(${f.slot},${f.track_number||1})">
+          <div class="list-primary">${escHtml(title)}</div>
+          <div class="list-secondary">${sub}</div>
+        </div>
+        <button class="btn-icon" onclick="event.stopPropagation();removeFav(${f.slot},${f.track_number})" style="color:var(--red)">&#9829;</button>
+      </div>`;
+    }).join('');
+  } catch (err) { console.error(err); }
+}
+
+async function removeFav(slot, track) {
+  try {
+    await api('/favorites/toggle', 'POST', { slot, track });
+    loadFavorites();
+    const state = playerStates[activePlayer];
+    if (state?.disc === slot && state?.track === track) updateFavButton(slot, track);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function starsHtml(rating) {
+  return Array.from({length: 5}, (_, i) => i < rating ? '&#9733;' : '&#9734;').join('');
+}
+
+async function loadRatings() {
+  try {
+    const all = await api('/ratings');
+    const container = document.getElementById('ratingsList');
+    const filterVal = parseInt(document.getElementById('ratingsFilter')?.value) || 0;
+    const viewVal = document.getElementById('ratingsView')?.value || 'all';
+
+    let filtered = all;
+    if (filterVal > 0) filtered = filtered.filter(r => r.rating >= filterVal);
+    if (viewVal === 'tracks') filtered = filtered.filter(r => r.track_number > 0);
+    if (viewVal === 'cds') filtered = filtered.filter(r => r.track_number === 0);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="empty-state"><p>${t('ratings.empty')}</p></div>`;
+      return;
+    }
+    container.innerHTML = filtered.map(r => {
+      const isTrack = r.track_number > 0;
+      const title = isTrack ? (r.track_title || `Track ${r.track_number}`) : (r.cd_title || `CD ${r.slot}`);
+      const sub = isTrack
+        ? `${escHtml(r.cd_title||`CD ${r.slot}`)} | Track ${r.track_number} | ${escHtml(r.cd_artist||'')}`
+        : escHtml(r.cd_artist||'');
+      return `<div class="list-item" onclick="loadAndPlayTrack(${r.slot},${r.track_number||1})" style="cursor:pointer">
+        <div class="slot-badge">${r.slot}</div>
+        <div class="list-meta">
+          <div class="list-primary">${escHtml(title)}</div>
+          <div class="list-secondary">${sub}</div>
+        </div>
+        <div class="stars-display">${starsHtml(r.rating)}</div>
+      </div>`;
+    }).join('');
+  } catch (err) { console.error(err); }
+}
+
+async function loadStats() {
+  try {
+    const s = await api('/stats');
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${s.totalCDs}</div><div class="stat-label">${t('stats.cds')}</div></div>
+      <div class="stat-card"><div class="stat-value">${s.totalTracks}</div><div class="stat-label">${t('stats.tracks')}</div></div>
+      <div class="stat-card"><div class="stat-value">${s.totalPlays}</div><div class="stat-label">${t('stats.plays')}</div></div>
+      <div class="stat-card"><div class="stat-value">${s.totalFavorites}</div><div class="stat-label">${t('stats.favorites')}</div></div>
+      <div class="stat-card"><div class="stat-value">${s.totalPlaylists}</div><div class="stat-label">${t('stats.playlists')}</div></div>
+    `;
+  } catch (err) { console.error(err); }
+}
+
+async function loadSettings() {
+  try {
+    const settings = await api('/settings');
+    document.getElementById('settSerialPort').value = settings.serial_port || '/dev/ttyUSB0';
+    document.getElementById('settBaudRate').value = settings.baud_rate || '9600';
+    document.getElementById('settModel').value = settings.model || 'CAC-V3000';
+    document.getElementById('settMaxDiscs').value = settings.max_discs || '300';
+    document.getElementById('settWebPort').value = settings.web_port || '3000';
+    document.getElementById('settMbAppName').value = settings.mb_app_name || 'CACController';
+    document.getElementById('settMbAppVersion').value = settings.mb_app_version || '1.0';
+    document.getElementById('settMbContact').value = settings.mb_contact || '';
+    document.getElementById('settNodeName').value = settings.node_name || '';
+    document.getElementById('settNodeRoom').value = settings.node_room || '';
+    document.getElementById('settNodeApiKey').value = settings.node_api_key || '';
+    document.getElementById('settLanguage').value = getStoredLanguagePref();
+  } catch (err) { console.error(err); }
+}
+
+async function saveSettings() {
+  try {
+    await api('/settings', 'PUT', {
+      serial_port: document.getElementById('settSerialPort').value,
+      baud_rate: document.getElementById('settBaudRate').value,
+      model: document.getElementById('settModel').value,
+      max_discs: document.getElementById('settMaxDiscs').value,
+      web_port: document.getElementById('settWebPort').value,
+      mb_app_name: document.getElementById('settMbAppName').value,
+      mb_app_version: document.getElementById('settMbAppVersion').value,
+      mb_contact: document.getElementById('settMbContact').value,
+      node_name: document.getElementById('settNodeName').value,
+      node_room: document.getElementById('settNodeRoom').value,
+      node_api_key: document.getElementById('settNodeApiKey').value,
+      language: document.getElementById('settLanguage').value,
+    });
+    toast(t('settings.saved'), 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function generateApiKey() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let key = '';
+  for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('settNodeApiKey').value = key;
+}
+
+// ── Terminal ──
+function appendTerminal(text) {
+  const el = document.getElementById('termOutput');
+  el.textContent += text + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendTerminal() {
+  const input = document.getElementById('termInput');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  input.value = '';
+  appendTerminal(`> ${activePlayer}PS${cmd}`);
+  try {
+    const result = await api(`/player/${activePlayer}/raw`, 'POST', { command: cmd });
+    if (result.response?.raw) appendTerminal(`< ${result.response.raw}`);
+  } catch (err) { appendTerminal(`! ${err.message}`); }
+}
+
+// ── Modals ──
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });
+});
+
+// ── Utilities ──
+function formatDuration(seconds) {
+  if (!seconds) return '--:--';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString(getLanguage() === 'de' ? 'de-DE' : 'en-US',
+    { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function escAttr(str) { return str.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toast(message, type = '') {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}

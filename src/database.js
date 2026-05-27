@@ -1,0 +1,429 @@
+import Database from 'better-sqlite3';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { mkdirSync } from 'fs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = join(__dirname, '..', 'data');
+
+let db;
+
+export function initDatabase() {
+  mkdirSync(DATA_DIR, { recursive: true });
+  db = new Database(join(DATA_DIR, 'cac-controller.db'));
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  createTables();
+  return db;
+}
+
+function createTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cds (
+      slot INTEGER PRIMARY KEY CHECK(slot >= 1 AND slot <= 500),
+      disc_id TEXT,
+      title TEXT DEFAULT '',
+      artist TEXT DEFAULT '',
+      year TEXT DEFAULT '',
+      genre TEXT DEFAULT '',
+      total_tracks INTEGER DEFAULT 0,
+      total_duration_seconds INTEGER DEFAULT 0,
+      cover_url TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      musicbrainz_release_id TEXT DEFAULT '',
+      barcode TEXT DEFAULT '',
+      label TEXT DEFAULT '',
+      country TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tracks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot INTEGER NOT NULL REFERENCES cds(slot) ON DELETE CASCADE,
+      track_number INTEGER NOT NULL,
+      title TEXT DEFAULT '',
+      artist TEXT DEFAULT '',
+      duration_seconds INTEGER DEFAULT 0,
+      isrc TEXT DEFAULT '',
+      UNIQUE(slot, track_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS playlists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS playlist_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+      slot INTEGER NOT NULL,
+      track_number INTEGER DEFAULT 0,
+      position INTEGER NOT NULL,
+      UNIQUE(playlist_id, position)
+    );
+
+    CREATE TABLE IF NOT EXISTS play_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot INTEGER,
+      track_number INTEGER,
+      player_id INTEGER DEFAULT 1,
+      played_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot INTEGER NOT NULL,
+      track_number INTEGER DEFAULT 0,
+      added_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(slot, track_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS ratings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot INTEGER NOT NULL,
+      track_number INTEGER DEFAULT 0,
+      rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(slot, track_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tracks_slot ON tracks(slot);
+    CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id);
+    CREATE INDEX IF NOT EXISTS idx_play_history_played ON play_history(played_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_favorites_slot ON favorites(slot);
+    CREATE INDEX IF NOT EXISTS idx_ratings_slot ON ratings(slot);
+    CREATE INDEX IF NOT EXISTS idx_ratings_rating ON ratings(rating DESC);
+  `);
+
+  // Default settings
+  const defaults = {
+    model: 'CAC-V3000',
+    serial_port: '/dev/ttyUSB0',
+    baud_rate: '9600',
+    player1_id: '1',
+    player2_id: '2',
+    active_player: '1',
+    poll_interval_mode: '1000',
+    poll_interval_track: '2000',
+    poll_interval_time: '900',
+    poll_interval_disc: '5000',
+    web_port: '3000',
+    max_discs: '300',
+    theme: 'dark',
+    mb_app_name: 'CACController',
+    mb_app_version: '1.0',
+    mb_contact: '',
+    node_name: '',
+    node_room: '',
+    node_api_key: '',
+  };
+
+  const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  for (const [key, value] of Object.entries(defaults)) {
+    insertSetting.run(key, value);
+  }
+}
+
+// Settings
+export function getSetting(key) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : null;
+}
+
+export function setSetting(key, value) {
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
+}
+
+export function getAllSettings() {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  return Object.fromEntries(rows.map(r => [r.key, r.value]));
+}
+
+// CDs
+export function getCD(slot) {
+  const cd = db.prepare('SELECT * FROM cds WHERE slot = ?').get(slot);
+  if (!cd) return null;
+  cd.tracks = db.prepare('SELECT * FROM tracks WHERE slot = ? ORDER BY track_number').all(slot);
+  return cd;
+}
+
+export function getAllCDs() {
+  return db.prepare('SELECT * FROM cds ORDER BY slot').all();
+}
+
+export function getCDsWithTracks() {
+  const cds = getAllCDs();
+  const trackStmt = db.prepare('SELECT * FROM tracks WHERE slot = ? ORDER BY track_number');
+  return cds.map(cd => ({ ...cd, tracks: trackStmt.all(cd.slot) }));
+}
+
+export function upsertCD(slot, data) {
+  const existing = db.prepare('SELECT slot FROM cds WHERE slot = ?').get(slot);
+  if (existing) {
+    db.prepare(`
+      UPDATE cds SET
+        disc_id = COALESCE(?, disc_id),
+        title = COALESCE(?, title),
+        artist = COALESCE(?, artist),
+        year = COALESCE(?, year),
+        genre = COALESCE(?, genre),
+        total_tracks = COALESCE(?, total_tracks),
+        total_duration_seconds = COALESCE(?, total_duration_seconds),
+        cover_url = COALESCE(?, cover_url),
+        notes = COALESCE(?, notes),
+        musicbrainz_release_id = COALESCE(?, musicbrainz_release_id),
+        barcode = COALESCE(?, barcode),
+        label = COALESCE(?, label),
+        country = COALESCE(?, country),
+        updated_at = datetime('now')
+      WHERE slot = ?
+    `).run(
+      data.disc_id, data.title, data.artist, data.year, data.genre,
+      data.total_tracks, data.total_duration_seconds, data.cover_url,
+      data.notes, data.musicbrainz_release_id, data.barcode, data.label,
+      data.country, slot
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO cds (slot, disc_id, title, artist, year, genre, total_tracks,
+        total_duration_seconds, cover_url, notes, musicbrainz_release_id, barcode, label, country)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      slot, data.disc_id || '', data.title || '', data.artist || '', data.year || '',
+      data.genre || '', data.total_tracks || 0, data.total_duration_seconds || 0,
+      data.cover_url || '', data.notes || '', data.musicbrainz_release_id || '',
+      data.barcode || '', data.label || '', data.country || ''
+    );
+  }
+  return getCD(slot);
+}
+
+export function deleteCD(slot) {
+  db.prepare('DELETE FROM cds WHERE slot = ?').run(slot);
+}
+
+// Tracks
+export function setTracks(slot, tracks) {
+  const del = db.prepare('DELETE FROM tracks WHERE slot = ?');
+  const ins = db.prepare(`
+    INSERT INTO tracks (slot, track_number, title, artist, duration_seconds, isrc)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const transaction = db.transaction((slot, tracks) => {
+    del.run(slot);
+    for (const t of tracks) {
+      ins.run(slot, t.track_number, t.title || '', t.artist || '', t.duration_seconds || 0, t.isrc || '');
+    }
+  });
+  transaction(slot, tracks);
+}
+
+export function updateTrack(slot, trackNumber, data) {
+  db.prepare(`
+    UPDATE tracks SET
+      title = COALESCE(?, title),
+      artist = COALESCE(?, artist),
+      duration_seconds = COALESCE(?, duration_seconds),
+      isrc = COALESCE(?, isrc)
+    WHERE slot = ? AND track_number = ?
+  `).run(data.title, data.artist, data.duration_seconds, data.isrc, slot, trackNumber);
+}
+
+// Playlists
+export function getAllPlaylists() {
+  return db.prepare('SELECT * FROM playlists ORDER BY name').all();
+}
+
+export function getPlaylist(id) {
+  const playlist = db.prepare('SELECT * FROM playlists WHERE id = ?').get(id);
+  if (!playlist) return null;
+  playlist.items = db.prepare(`
+    SELECT pi.*, c.title as cd_title, c.artist as cd_artist,
+           t.title as track_title, t.artist as track_artist
+    FROM playlist_items pi
+    LEFT JOIN cds c ON c.slot = pi.slot
+    LEFT JOIN tracks t ON t.slot = pi.slot AND t.track_number = pi.track_number
+    WHERE pi.playlist_id = ?
+    ORDER BY pi.position
+  `).all(id);
+  return playlist;
+}
+
+export function createPlaylist(name, description) {
+  const result = db.prepare('INSERT INTO playlists (name, description) VALUES (?, ?)').run(name, description || '');
+  return getPlaylist(result.lastInsertRowid);
+}
+
+export function updatePlaylist(id, data) {
+  db.prepare(`
+    UPDATE playlists SET
+      name = COALESCE(?, name),
+      description = COALESCE(?, description),
+      updated_at = datetime('now')
+    WHERE id = ?
+  `).run(data.name, data.description, id);
+  return getPlaylist(id);
+}
+
+export function deletePlaylist(id) {
+  db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
+}
+
+export function addToPlaylist(playlistId, slot, trackNumber) {
+  const maxPos = db.prepare('SELECT MAX(position) as max FROM playlist_items WHERE playlist_id = ?').get(playlistId);
+  const position = (maxPos?.max || 0) + 1;
+  db.prepare('INSERT INTO playlist_items (playlist_id, slot, track_number, position) VALUES (?, ?, ?, ?)')
+    .run(playlistId, slot, trackNumber || 0, position);
+  return getPlaylist(playlistId);
+}
+
+export function removeFromPlaylist(itemId) {
+  db.prepare('DELETE FROM playlist_items WHERE id = ?').run(itemId);
+}
+
+export function reorderPlaylist(playlistId, itemIds) {
+  const update = db.prepare('UPDATE playlist_items SET position = ? WHERE id = ? AND playlist_id = ?');
+  const transaction = db.transaction(() => {
+    itemIds.forEach((id, index) => update.run(index + 1, id, playlistId));
+  });
+  transaction();
+  return getPlaylist(playlistId);
+}
+
+// Play History
+export function addPlayHistory(slot, trackNumber, playerId) {
+  db.prepare('INSERT INTO play_history (slot, track_number, player_id) VALUES (?, ?, ?)')
+    .run(slot, trackNumber || 0, playerId || 1);
+}
+
+export function getPlayHistory(limit = 50) {
+  return db.prepare(`
+    SELECT ph.*, c.title as cd_title, c.artist as cd_artist,
+           t.title as track_title, t.artist as track_artist
+    FROM play_history ph
+    LEFT JOIN cds c ON c.slot = ph.slot
+    LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+    ORDER BY ph.played_at DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+export function clearPlayHistory() {
+  db.prepare('DELETE FROM play_history').run();
+}
+
+// Favorites
+export function getFavorites() {
+  return db.prepare(`
+    SELECT f.*, c.title as cd_title, c.artist as cd_artist,
+           t.title as track_title, t.artist as track_artist
+    FROM favorites f
+    LEFT JOIN cds c ON c.slot = f.slot
+    LEFT JOIN tracks t ON t.slot = f.slot AND t.track_number = f.track_number
+    ORDER BY f.added_at DESC
+  `).all();
+}
+
+export function toggleFavorite(slot, trackNumber) {
+  const existing = db.prepare('SELECT id FROM favorites WHERE slot = ? AND track_number = ?')
+    .get(slot, trackNumber || 0);
+  if (existing) {
+    db.prepare('DELETE FROM favorites WHERE id = ?').run(existing.id);
+    return false;
+  } else {
+    db.prepare('INSERT INTO favorites (slot, track_number) VALUES (?, ?)').run(slot, trackNumber || 0);
+    return true;
+  }
+}
+
+export function isFavorite(slot, trackNumber) {
+  return !!db.prepare('SELECT 1 FROM favorites WHERE slot = ? AND track_number = ?').get(slot, trackNumber || 0);
+}
+
+// Search
+export function searchLibrary(query) {
+  const pattern = `%${query}%`;
+  const cds = db.prepare(`
+    SELECT * FROM cds
+    WHERE title LIKE ? OR artist LIKE ? OR genre LIKE ? OR notes LIKE ?
+    ORDER BY slot
+  `).all(pattern, pattern, pattern, pattern);
+
+  const tracks = db.prepare(`
+    SELECT t.*, c.title as cd_title, c.artist as cd_artist
+    FROM tracks t
+    JOIN cds c ON c.slot = t.slot
+    WHERE t.title LIKE ? OR t.artist LIKE ?
+    ORDER BY t.slot, t.track_number
+  `).all(pattern, pattern);
+
+  return { cds, tracks };
+}
+
+// Stats
+export function getStats() {
+  const totalCDs = db.prepare('SELECT COUNT(*) as count FROM cds').get().count;
+  const totalTracks = db.prepare('SELECT COUNT(*) as count FROM tracks').get().count;
+  const totalPlays = db.prepare('SELECT COUNT(*) as count FROM play_history').get().count;
+  const totalFavorites = db.prepare('SELECT COUNT(*) as count FROM favorites').get().count;
+  const totalPlaylists = db.prepare('SELECT COUNT(*) as count FROM playlists').get().count;
+  const recentPlays = db.prepare(`
+    SELECT slot, COUNT(*) as plays FROM play_history
+    GROUP BY slot ORDER BY plays DESC LIMIT 10
+  `).all();
+  return { totalCDs, totalTracks, totalPlays, totalFavorites, totalPlaylists, recentPlays };
+}
+
+// Ratings
+export function setRating(slot, trackNumber, rating) {
+  if (rating < 1 || rating > 5) return;
+  db.prepare('INSERT OR REPLACE INTO ratings (slot, track_number, rating) VALUES (?, ?, ?)')
+    .run(slot, trackNumber || 0, rating);
+}
+
+export function removeRating(slot, trackNumber) {
+  db.prepare('DELETE FROM ratings WHERE slot = ? AND track_number = ?').run(slot, trackNumber || 0);
+}
+
+export function getRating(slot, trackNumber) {
+  const row = db.prepare('SELECT rating FROM ratings WHERE slot = ? AND track_number = ?').get(slot, trackNumber || 0);
+  return row ? row.rating : 0;
+}
+
+export function getRatings(minRating = 1) {
+  return db.prepare(`
+    SELECT r.*, c.title as cd_title, c.artist as cd_artist,
+           t.title as track_title, t.artist as track_artist
+    FROM ratings r
+    LEFT JOIN cds c ON c.slot = r.slot
+    LEFT JOIN tracks t ON t.slot = r.slot AND t.track_number = r.track_number
+    WHERE r.rating >= ?
+    ORDER BY r.rating DESC, r.slot, r.track_number
+  `).all(minRating);
+}
+
+export function getTopRated(limit = 50) {
+  return db.prepare(`
+    SELECT r.*, c.title as cd_title, c.artist as cd_artist,
+           t.title as track_title, t.artist as track_artist
+    FROM ratings r
+    LEFT JOIN cds c ON c.slot = r.slot
+    LEFT JOIN tracks t ON t.slot = r.slot AND t.track_number = r.track_number
+    ORDER BY r.rating DESC, r.created_at DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+export function getDb() {
+  return db;
+}

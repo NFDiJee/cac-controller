@@ -1,0 +1,25 @@
+[Unit]
+Description=CAC Controller - Pioneer CD Autochanger Web Controller
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/cac-controller
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cac-controller
+
+# Give access to serial ports
+SupplementaryGroups=dialout
+
+# Environment
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

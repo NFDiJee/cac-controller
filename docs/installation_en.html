@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAC Controller - Installation Guide</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-code: #0f0f23;
+    --text: #e0e0e0;
+    --text-dim: #8a8a9a;
+    --accent: #4fc3f7;
+    --accent2: #81c784;
+    --border: #2a2a4a;
+    --table-stripe: #1a2740;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 {
+    font-size: 2.2rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 0.5rem;
+  }
+  h2 {
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+  h3 {
+    font-size: 1.2rem;
+    color: var(--accent2);
+    margin-top: 2rem;
+    margin-bottom: 0.7rem;
+  }
+  h4 {
+    font-size: 1.05rem;
+    color: var(--text);
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  p { margin-bottom: 1rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: #fff; }
+  em { color: var(--accent2); font-style: normal; }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg-code);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: var(--accent2);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--bg-code);
+    color: var(--accent);
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  td {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--border);
+  }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+  ul, ol {
+    margin: 0.5rem 0 1rem 1.5rem;
+  }
+  li { margin-bottom: 0.3rem; }
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+  }
+  .toc h2 { margin-top: 0; border: none; font-size: 1.3rem; }
+  .toc ol { margin-left: 1.2rem; }
+  .toc li { margin-bottom: 0.2rem; }
+  .toc a { color: var(--text); }
+  .toc a:hover { color: var(--accent); }
+  .diagram {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem;
+    margin: 1rem 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-dim);
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.5em;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .badge-blue { background: #1565c0; color: #fff; }
+  .badge-green { background: #2e7d32; color: #fff; }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 3rem 0;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 700px) {
+    .container { padding: 1rem; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; }
+    pre { font-size: 0.75rem; padding: 0.8rem; }
+    table { font-size: 0.8rem; }
+    th, td { padding: 0.3rem 0.5rem; }
+  }
+  @media print {
+    body { background: #fff; color: #000; }
+    .container { max-width: 100%; }
+    h1, h2, h3 { color: #000; }
+    code { background: #f0f0f0; color: #333; }
+    pre { background: #f5f5f5; border-color: #ccc; }
+    th { background: #e0e0e0; color: #000; }
+    tr:nth-child(even) td { background: #f9f9f9; }
+    .toc { background: #f5f5f5; border-color: #ccc; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>CAC Controller - Installation Guide</h1>
+<p class="subtitle">Step-by-step installation guide for the CAC Controller on a Raspberry Pi &mdash; Pioneer CAC CD Autochanger Web Controller</p>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ol>
+  <li><a href="#s1">Overview</a></li>
+  <li><a href="#s2">Prerequisites</a></li>
+  <li><a href="#s3">Preparing the Raspberry Pi</a></li>
+  <li><a href="#s4">Installing Node.js</a></li>
+  <li><a href="#s5">Installing Build Tools</a></li>
+  <li><a href="#s6">Setting Up the Serial Port</a></li>
+  <li><a href="#s7">Installing the CAC Controller</a></li>
+  <li><a href="#s8">First Start and Testing</a></li>
+  <li><a href="#s9">Setting Up the Systemd Service</a></li>
+  <li><a href="#s10">Configuring Settings</a></li>
+  <li><a href="#s11">Configuring Hub Connection</a></li>
+  <li><a href="#s12">Building the CD Database</a></li>
+  <li><a href="#s13">Installing PWA on Smartphone</a></li>
+  <li><a href="#s14">Updates</a></li>
+  <li><a href="#s15">Troubleshooting</a></li>
+  <li><a href="#s16">Uninstallation</a></li>
+</ol>
+</div>
+
+<!-- ── 1. Overview ── -->
+<h2 id="s1">1. Overview</h2>
+
+<p>Detailed step-by-step guide for installing the CAC Controller on a Raspberry Pi. The controller operates a Pioneer CAC CD autochanger (V3000, V3200, V5000, or V180M) via a serial RS-232C connection.</p>
+
+<h3>What is the CAC Controller?</h3>
+
+<p>The CAC Controller is a Node.js web application that runs on a Raspberry Pi and controls a Pioneer CAC CD autochanger via the serial interface (RS-232C). It provides:</p>
+
+<ul>
+  <li><strong>Web Interface</strong> &mdash; Responsive dark-theme UI for browsers and smartphones</li>
+  <li><strong>Dual Player Control</strong> &mdash; Control both players of the changer simultaneously</li>
+  <li><strong>CD Library</strong> &mdash; Catalog all CDs with covers, artist info, and track lists</li>
+  <li><strong>MusicBrainz Integration</strong> &mdash; Automatic metadata lookup</li>
+  <li><strong>Scanner</strong> &mdash; Automatically read and catalog CDs</li>
+  <li><strong>Playlists</strong> &mdash; Create custom playback lists</li>
+  <li><strong>PWA</strong> &mdash; Installable as an app on smartphones</li>
+</ul>
+
+<h3>Supported Pioneer Models</h3>
+
+<table>
+  <tr><th>Model</th><th>Slots</th><th>Baud Rate</th><th>Notes</th></tr>
+  <tr><td>CAC-V3000</td><td>300</td><td>9600</td><td>Standard reference model</td></tr>
+  <tr><td>CAC-V3200</td><td>300</td><td>9600</td><td>Same as V3000</td></tr>
+  <tr><td>CAC-V5000</td><td>500</td><td>9600</td><td>500-disc magazine</td></tr>
+  <tr><td>CAC-V180M</td><td>18</td><td>4800</td><td>Compact changer, different baud rate</td></tr>
+</table>
+
+<h3>System Architecture</h3>
+
+<div class="diagram">&#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;     &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;     &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+&#x2502;  Smartphone /  &#x2502;     &#x2502;  Raspberry Pi   &#x2502;     &#x2502;  Pioneer CAC      &#x2502;
+&#x2502;  Tablet / PC   &#x2502;&#x2500;&#x2500;&#x2500;&#x2500;&gt;&#x2502;  CAC Controller &#x2502;&#x2500;&#x2500;&#x2500;&#x2500;&gt;&#x2502;  CD Changer       &#x2502;
+&#x2502;  (Browser)     &#x2502; HTTP&#x2502;  (Node.js)      &#x2502; RS- &#x2502;  (V3000/V5000/    &#x2502;
+&#x2502;                &#x2502;&lt;&#x2500;&#x2500;&#x2500;&#x2500;&#x2502;  Port 3000      &#x2502; 232C&#x2502;   V180M)          &#x2502;
+&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; WS  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;     &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</div>
+
+<hr>
+
+<!-- ── 2. Prerequisites ── -->
+<h2 id="s2">2. Prerequisites</h2>
+
+<h3>Hardware</h3>
+
+<ul>
+  <li><strong>Raspberry Pi</strong> &mdash; Recommended: Pi 3B+, Pi 4, Pi 5, or Zero 2 W
+    <ul>
+      <li>Pi Zero (first generation) works but is significantly slower during installation</li>
+      <li>Minimum 512 MB RAM</li>
+    </ul>
+  </li>
+  <li><strong>MicroSD Card</strong> &mdash; Minimum 8 GB, recommended 16 GB or more</li>
+  <li><strong>Power Supply</strong> &mdash; Appropriate USB power supply for your Pi model</li>
+  <li><strong>USB-to-Serial Adapter</strong> &mdash; USB-A to RS-232C (DB9 or DB25)
+    <ul>
+      <li>Chipsets: FTDI FT232R, Prolific PL2303, or CH340 (all Linux-compatible)</li>
+      <li>Will be recognized as <code>/dev/ttyUSB0</code></li>
+    </ul>
+  </li>
+  <li><strong>Serial Cable</strong> &mdash; RS-232C cable to the Pioneer changer
+    <ul>
+      <li>15-pin D-Sub connector (Pioneer side)</li>
+      <li>9-pin D-Sub connector (adapter side) or 25-pin depending on adapter</li>
+      <li>Pinout: TX (Pin 2), RX (Pin 3), GND (Pin 5) &mdash; crossed (null modem)</li>
+    </ul>
+  </li>
+  <li><strong>Network Connection</strong> &mdash; WiFi or Ethernet</li>
+  <li><strong>Pioneer CAC Changer</strong> &mdash; Powered on and operational</li>
+</ul>
+
+<h3>Software</h3>
+
+<ul>
+  <li><strong>Raspberry Pi OS</strong> &mdash; Lite or Desktop (Debian Bookworm or newer recommended)</li>
+  <li><strong>SSH Access</strong> &mdash; Enabled (in Raspberry Pi Imager under settings)</li>
+  <li><strong>Internet Access</strong> &mdash; For installing packages</li>
+</ul>
+
+<h3>Network</h3>
+
+<ul>
+  <li>The Raspberry Pi must be on the same network as the control device (smartphone/PC)</li>
+  <li>Recommended: Static IP address for the Pi (see Section 3)</li>
+  <li>Default port: 3000 (configurable)</li>
+</ul>
+
+<hr>
+
+<!-- ── 3. Preparing the Raspberry Pi ── -->
+<h2 id="s3">3. Preparing the Raspberry Pi</h2>
+
+<h3>3.1 Installing the Operating System</h3>
+
+<ol>
+  <li>Download <strong>Raspberry Pi Imager</strong>: <a href="https://www.raspberrypi.com/software/">https://www.raspberrypi.com/software/</a></li>
+  <li>Flash Raspberry Pi OS Lite (64-bit) to the MicroSD card</li>
+  <li>In the Imager under <strong>Settings</strong> (gear icon):
+    <ul>
+      <li>Set hostname (e.g., <code>cac-livingroom</code>)</li>
+      <li>Enable SSH</li>
+      <li>Set username and password (default: <code>pi</code>)</li>
+      <li>Configure WiFi (SSID and password)</li>
+      <li>Set locale/timezone</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>3.2 Connect via SSH</h3>
+
+<pre><code>ssh pi@&lt;IP_ADDRESS&gt;</code></pre>
+
+<p>If the IP is unknown:</p>
+
+<pre><code># From your local machine (right after first boot):
+ping cac-livingroom.local
+# or check your router's DHCP lease list</code></pre>
+
+<h3>3.3 Update the System</h3>
+
+<pre><code>sudo apt update &amp;&amp; sudo apt upgrade -y</code></pre>
+
+<h3>3.4 Configure Static IP Address (Recommended)</h3>
+
+<p>For Raspberry Pi OS Bookworm (NetworkManager):</p>
+
+<pre><code># Show current connection:
+nmcli connection show
+
+# Set static IP (example for WiFi):
+sudo nmcli connection modify "preconfigured" \
+  ipv4.method manual \
+  ipv4.addresses "192.168.1.100/24" \
+  ipv4.gateway "192.168.1.1" \
+  ipv4.dns "192.168.1.1"
+
+# Restart connection:
+sudo nmcli connection down "preconfigured"
+sudo nmcli connection up "preconfigured"</code></pre>
+
+<p><strong>Note:</strong> Replace the connection name (<code>preconfigured</code>) with your actual name (see <code>nmcli connection show</code>).</p>
+
+<h3>3.5 Disable WiFi Power Saving (Recommended)</h3>
+
+<p>Power saving mode can cause delays and connection drops:</p>
+
+<pre><code># Check current status:
+iw wlan0 get power_save
+
+# Disable:
+sudo iw wlan0 set power_save off</code></pre>
+
+<p>Make it permanent:</p>
+
+<pre><code>sudo tee /etc/NetworkManager/conf.d/wifi-powersave.conf &gt; /dev/null &lt;&lt; 'EOF'
+[connection]
+wifi.powersave = 2
+EOF
+sudo systemctl restart NetworkManager</code></pre>
+
+<hr>
+
+<!-- ── 4. Installing Node.js ── -->
+<h2 id="s4">4. Installing Node.js</h2>
+
+<h3>4.1 Install Node.js 20 LTS</h3>
+
+<pre><code>curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs</code></pre>
+
+<h3>4.2 Verify Installation</h3>
+
+<pre><code>node --version
+# Expected output: v20.x.x (minimum v18.x)
+
+npm --version
+# Expected output: 10.x.x</code></pre>
+
+<h3>4.3 Alternative: Node.js via nvm</h3>
+
+<p>If the NodeSource method causes issues:</p>
+
+<pre><code>curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20</code></pre>
+
+<hr>
+
+<!-- ── 5. Installing Build Tools ── -->
+<h2 id="s5">5. Installing Build Tools</h2>
+
+<p>The native SQLite extension (<code>better-sqlite3</code>) needs to be compiled:</p>
+
+<pre><code>sudo apt install -y build-essential python3</code></pre>
+
+<p>On a fresh Raspberry Pi OS, these packages are usually already present. This command ensures all required compilers and headers are installed.</p>
+
+<hr>
+
+<!-- ── 6. Setting Up the Serial Port ── -->
+<h2 id="s6">6. Setting Up the Serial Port</h2>
+
+<h3>6.1 Add User to dialout Group</h3>
+
+<p>So the CAC Controller can access the serial port:</p>
+
+<pre><code>sudo usermod -a -G dialout pi</code></pre>
+
+<p><strong>Important:</strong> Log out and back in for the group change to take effect:</p>
+
+<pre><code># Either re-login:
+exit
+ssh pi@&lt;IP_ADDRESS&gt;
+
+# Or just update the group:
+newgrp dialout</code></pre>
+
+<p>Verify group membership:</p>
+
+<pre><code>groups
+# Should include "dialout"</code></pre>
+
+<h3>6.2 Connect and Check USB-Serial Adapter</h3>
+
+<ol>
+  <li>Plug the USB-serial adapter into the Raspberry Pi</li>
+  <li>Check if it is recognized:</li>
+</ol>
+
+<pre><code># List USB devices:
+lsusb
+# Should show the adapter, e.g.:
+# Bus 001 Device 003: ID 0403:6001 Future Technology Devices International, Ltd FT232 Serial (UART) IC
+
+# Check serial port:
+ls -la /dev/ttyUSB*
+# Expected output: /dev/ttyUSB0
+
+# If not found, check kernel log:
+dmesg | grep -i tty</code></pre>
+
+<h3>6.3 Connect the Serial Cable</h3>
+
+<ol>
+  <li>Connect the USB-serial adapter to the serial cable</li>
+  <li>Plug the serial cable into the <strong>RS-232C</strong> port on the Pioneer changer</li>
+  <li>Power on the Pioneer changer</li>
+</ol>
+
+<h3>6.4 Test Serial Connection (Optional)</h3>
+
+<p>Manually verify that communication works:</p>
+
+<pre><code># Configure port (example for V3000 at 9600 baud):
+stty -F /dev/ttyUSB0 9600 cs8 -cstopb -parenb
+
+# Query status (sends "Player 1 Status" command):
+echo -ne "1PS?X\r" &gt; /dev/ttyUSB0
+
+# Read response (wait 3 seconds):
+timeout 3 cat /dev/ttyUSB0
+# Should return a response like "1PS..."</code></pre>
+
+<hr>
+
+<!-- ── 7. Installing the CAC Controller ── -->
+<h2 id="s7">7. Installing the CAC Controller</h2>
+
+<h3>Option A: From GitHub (Recommended)</h3>
+
+<pre><code>cd /opt
+sudo git clone https://github.com/NFDiJee/cac-controller.git
+sudo chown -R pi:pi /opt/cac-controller
+cd /opt/cac-controller
+npm install</code></pre>
+
+<p>The <code>npm install</code> process takes several minutes on a Raspberry Pi (up to 10&ndash;15 minutes on a Pi Zero), as <code>better-sqlite3</code> is compiled natively.</p>
+
+<h3>Option B: Manual Copy</h3>
+
+<p>If Git is not available or preferred:</p>
+
+<pre><code># On your local machine:
+scp -r ./cac-controller/* pi@&lt;PI_IP&gt;:/opt/cac-controller/
+
+# On the Raspberry Pi:
+cd /opt/cac-controller
+npm install</code></pre>
+
+<h3>Verify Installation</h3>
+
+<pre><code>ls -la /opt/cac-controller/
+# Should contain: server.js, package.json, src/, public/, ...
+
+ls -la /opt/cac-controller/node_modules/
+# Should show installed packages</code></pre>
+
+<hr>
+
+<!-- ── 8. First Start and Testing ── -->
+<h2 id="s8">8. First Start and Testing</h2>
+
+<h3>8.1 Start the Server Manually</h3>
+
+<pre><code>cd /opt/cac-controller
+node server.js</code></pre>
+
+<p>Expected output:</p>
+
+<pre><code>[Server] Initializing database...
+[Server] CAC Controller running on http://0.0.0.0:3000
+[Server] Model: CAC-V3000
+[Server] Serial: /dev/ttyUSB0 @ 9600 baud</code></pre>
+
+<h3>8.2 Open in Browser</h3>
+
+<p>On your smartphone/PC, open in the browser:</p>
+
+<pre><code>http://&lt;PI_IP&gt;:3000</code></pre>
+
+<p>Example: <code>http://192.168.1.100:3000</code></p>
+
+<p>You should see the CAC Controller dashboard with:</p>
+<ul>
+  <li>Player cards for Player 1 and Player 2</li>
+  <li>Transport controls (Play, Stop, Pause, Next, Previous)</li>
+  <li>Navigation (Library, Scanner, Playlists, Settings)</li>
+</ul>
+
+<h3>8.3 Test First Connection</h3>
+
+<ol>
+  <li>Press <strong>Play</strong> in the browser</li>
+  <li>The changer should load a CD and start playing</li>
+  <li>The player card should update with status (disc, track, time)</li>
+</ol>
+
+<h3>8.4 Stop the Server</h3>
+
+<p>Press <code>Ctrl+C</code> in the terminal to stop the server.</p>
+
+<hr>
+
+<!-- ── 9. Setting Up the Systemd Service ── -->
+<h2 id="s9">9. Setting Up the Systemd Service</h2>
+
+<p>A systemd service ensures the CAC Controller starts automatically on boot and restarts on crashes.</p>
+
+<h3>9.1 Copy Service File</h3>
+
+<pre><code>sudo cp /opt/cac-controller/cac-controller.service /etc/systemd/system/</code></pre>
+
+<h3>9.2 Adjust Service File (If Needed)</h3>
+
+<p>If your user is not <code>pi</code>:</p>
+
+<pre><code>sudo nano /etc/systemd/system/cac-controller.service</code></pre>
+
+<p>Contents of the service file:</p>
+
+<pre><code>[Unit]
+Description=CAC Controller - Pioneer CD Autochanger Controller
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/cac-controller
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<p>Change <code>User=</code> and <code>Group=</code> to the correct user.</p>
+
+<h3>9.3 Enable and Start the Service</h3>
+
+<pre><code># Reload systemd configuration:
+sudo systemctl daemon-reload
+
+# Enable service on boot:
+sudo systemctl enable cac-controller
+
+# Start service now:
+sudo systemctl start cac-controller</code></pre>
+
+<h3>9.4 Check Status</h3>
+
+<pre><code>sudo systemctl status cac-controller</code></pre>
+
+<p>Expected output:</p>
+
+<pre><code>&#x25cf; cac-controller.service - CAC Controller - Pioneer CD Autochanger Controller
+     Loaded: loaded (/etc/systemd/system/cac-controller.service; enabled)
+     Active: active (running) since ...</code></pre>
+
+<h3>9.5 View Logs</h3>
+
+<pre><code># Follow current logs live:
+sudo journalctl -u cac-controller -f
+
+# Last 50 lines:
+sudo journalctl -u cac-controller --no-pager -n 50</code></pre>
+
+<h3>9.6 Test Autostart</h3>
+
+<pre><code>sudo reboot</code></pre>
+
+<p>After reboot (approx. 30&ndash;60 seconds), <code>http://&lt;PI_IP&gt;:3000</code> should be accessible again.</p>
+
+<hr>
+
+<!-- ── 10. Configuring Settings ── -->
+<h2 id="s10">10. Configuring Settings</h2>
+
+<p>In the browser under <strong>More &gt; Settings</strong> (gear icon), the following settings can be adjusted:</p>
+
+<h3>10.1 Serial Port</h3>
+
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Port</td><td><code>/dev/ttyUSB0</code></td><td>Serial port of the USB adapter</td></tr>
+  <tr><td>Baud Rate</td><td><code>9600</code></td><td><code>9600</code> for V3000/V3200/V5000, <code>4800</code> for V180M</td></tr>
+</table>
+
+<h3>10.2 Device Settings</h3>
+
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Model</td><td><code>CAC-V3000</code></td><td>Select Pioneer model</td></tr>
+  <tr><td>Max Discs</td><td><code>300</code></td><td>Number of slots: 300 (V3000/V3200), 500 (V5000), 18 (V180M)</td></tr>
+</table>
+
+<h3>10.3 Network</h3>
+
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Port</td><td><code>3000</code></td><td>HTTP server port</td></tr>
+  <tr><td>Language</td><td><code>auto</code></td><td>Automatic, German, or English</td></tr>
+</table>
+
+<h3>10.4 Apply Changes</h3>
+
+<p>After changes to port or serial settings, restart the service:</p>
+
+<pre><code>sudo systemctl restart cac-controller</code></pre>
+
+<hr>
+
+<!-- ── 11. Configuring Hub Connection ── -->
+<h2 id="s11">11. Configuring Hub Connection</h2>
+
+<p>If a <a href="https://github.com/NFDiJee/cac-controller-hub">CAC Hub</a> is being used, the node must have an API key.</p>
+
+<h3>11.1 Generate API Key</h3>
+
+<ol>
+  <li>In the browser under <strong>Settings</strong>, open the <strong>Hub / Network</strong> section</li>
+  <li>Enter a <strong>Node Name</strong> (e.g., "Living Room")</li>
+  <li>Enter a <strong>Room</strong> (e.g., "Ground Floor")</li>
+  <li>Click <strong>Generate API Key</strong> &mdash; creates a random 32-character key</li>
+  <li>Click <strong>Save</strong></li>
+</ol>
+
+<h3>11.2 Note the API Key</h3>
+
+<p>Copy the generated API key &mdash; it will be needed later when adding the node in the Hub.</p>
+
+<h3>11.3 Test Connection</h3>
+
+<p>From the Hub Pi or another machine on the network:</p>
+
+<pre><code>curl -H "X-API-Key: YOUR_API_KEY" http://&lt;NODE_IP&gt;:3000/api/node/info</code></pre>
+
+<p>Expected response:</p>
+
+<pre><code>{
+  "name": "Living Room",
+  "room": "Ground Floor",
+  "model": "CAC-V3000",
+  "version": "1.0.0"
+}</code></pre>
+
+<hr>
+
+<!-- ── 12. Building the CD Database ── -->
+<h2 id="s12">12. Building the CD Database</h2>
+
+<p>After installation, the CD library is empty. There are three ways to populate it:</p>
+
+<h3>12.1 Automatic CD Scanning</h3>
+
+<p>The scanner has the changer load each CD, read the TOC (Table of Contents), and return the CD:</p>
+
+<ol>
+  <li>In the browser under <strong>Scanner &gt; Scan Range</strong></li>
+  <li>Enter <strong>Start Slot</strong> (e.g., <code>1</code>)</li>
+  <li>Enter <strong>End Slot</strong> (e.g., <code>300</code>)</li>
+  <li>Click <strong>Start Scan</strong></li>
+</ol>
+
+<p><strong>Duration:</strong> Approx. 30&ndash;60 seconds per CD (load + read TOC + return). A full scan of 300 slots takes about 3&ndash;5 hours.</p>
+
+<p><strong>Note:</strong> The scan can be paused at any time and resumed later. Already scanned CDs are preserved.</p>
+
+<h3>12.2 MusicBrainz Search</h3>
+
+<p>For individual CDs, metadata can be searched automatically:</p>
+
+<ol>
+  <li>In the browser under <strong>Scanner &gt; MusicBrainz Search</strong></li>
+  <li>Search by <strong>album</strong> or <strong>artist</strong></li>
+  <li>Select a result</li>
+  <li>Apply to a slot</li>
+</ol>
+
+<h3>12.3 JSON Import</h3>
+
+<p>If a database from a previous installation exists:</p>
+
+<ol>
+  <li>In the browser under <strong>Scanner &gt; JSON Import</strong></li>
+  <li>Select a <code>cds.json</code> file</li>
+  <li>Click <strong>Import</strong></li>
+</ol>
+
+<hr>
+
+<!-- ── 13. Installing PWA on Smartphone ── -->
+<h2 id="s13">13. Installing PWA on Smartphone</h2>
+
+<p>The CAC Controller can be installed as a Progressive Web App (PWA) on your smartphone:</p>
+
+<h3>iOS (Safari)</h3>
+
+<ol>
+  <li>Open <code>http://&lt;PI_IP&gt;:3000</code> in Safari</li>
+  <li>Tap the <strong>Share</strong> icon (square with arrow)</li>
+  <li>Select <strong>Add to Home Screen</strong></li>
+  <li>Enter a name and tap <strong>Add</strong></li>
+</ol>
+
+<h3>Android (Chrome)</h3>
+
+<ol>
+  <li>Open <code>http://&lt;PI_IP&gt;:3000</code> in Chrome</li>
+  <li>Tap the <strong>three-dot menu</strong></li>
+  <li>Select <strong>Add to Home Screen</strong></li>
+  <li>Tap <strong>Add</strong></li>
+</ol>
+
+<p>The app then runs in full-screen mode like a native app.</p>
+
+<hr>
+
+<!-- ── 14. Updates ── -->
+<h2 id="s14">14. Updates</h2>
+
+<h3>From GitHub Repository</h3>
+
+<pre><code>cd /opt/cac-controller
+git pull
+npm install
+sudo systemctl restart cac-controller</code></pre>
+
+<h3>Manual Update</h3>
+
+<ol>
+  <li>Copy new files to the Pi (via SCP or USB)</li>
+  <li>Run <code>npm install</code> (if dependencies changed)</li>
+  <li>Restart service: <code>sudo systemctl restart cac-controller</code></li>
+</ol>
+
+<hr>
+
+<!-- ── 15. Troubleshooting ── -->
+<h2 id="s15">15. Troubleshooting</h2>
+
+<h3>15.1 Service Does Not Start</h3>
+
+<pre><code># Check logs:
+sudo journalctl -u cac-controller --no-pager -n 50
+
+# Service status:
+sudo systemctl status cac-controller
+
+# Start manually for detailed error output:
+cd /opt/cac-controller &amp;&amp; node server.js</code></pre>
+
+<h3>15.2 Serial Port Not Found</h3>
+
+<pre><code># List all USB devices:
+lsusb
+
+# List serial ports:
+ls -la /dev/ttyUSB* /dev/ttyACM* 2&gt;/dev/null
+
+# Check kernel log:
+dmesg | grep -i tty
+
+# Is user in dialout group?
+groups</code></pre>
+
+<p><strong>Solution:</strong> Unplug the adapter, wait 5 seconds, plug it back in. If <code>/dev/ttyUSB1</code> appears instead of <code>ttyUSB0</code>: change the port in settings.</p>
+
+<h3>15.3 No Connection to Changer</h3>
+
+<pre><code># Manually test serial connection:
+stty -F /dev/ttyUSB0 9600 cs8 -cstopb -parenb
+echo -ne "1PS?X\r" &gt; /dev/ttyUSB0
+timeout 3 cat /dev/ttyUSB0</code></pre>
+
+<p><strong>Possible causes:</strong></p>
+<ul>
+  <li>Wrong cable (not a null modem cable)</li>
+  <li>Wrong baud rate (4800 instead of 9600 or vice versa)</li>
+  <li>Changer powered off or in standby</li>
+  <li>TX/RX swapped</li>
+</ul>
+
+<h3>15.4 Port 3000 in Use</h3>
+
+<pre><code># Find process on port 3000:
+sudo lsof -i :3000
+
+# If an old process is running, stop the service:
+sudo systemctl stop cac-controller</code></pre>
+
+<p>Alternatively: choose a different port in settings (e.g., 8080).</p>
+
+<h3>15.5 npm install Fails</h3>
+
+<pre><code># Check build tools:
+gcc --version
+python3 --version
+
+# If not installed:
+sudo apt install -y build-essential python3
+
+# Delete node_modules and reinstall:
+rm -rf node_modules package-lock.json
+npm install</code></pre>
+
+<h3>15.6 WiFi Disconnects</h3>
+
+<pre><code># Check power saving mode:
+iw wlan0 get power_save
+
+# Disable (see Section 3.5)
+sudo iw wlan0 set power_save off</code></pre>
+
+<h3>15.7 Raspberry Pi Zero: Slow Installation</h3>
+
+<p>On a Pi Zero (first generation), <code>npm install</code> can take up to 15 minutes. Alternatives:</p>
+
+<ol>
+  <li><strong>Cross-compilation:</strong> Compile on a more powerful machine and transfer <code>node_modules/</code> via SCP</li>
+  <li><strong>Increase swap:</strong></li>
+</ol>
+
+<pre><code>sudo dphys-swapfile swapoff
+sudo nano /etc/dphys-swapfile
+# CONF_SWAPSIZE=1024
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon</code></pre>
+
+<hr>
+
+<!-- ── 16. Uninstallation ── -->
+<h2 id="s16">16. Uninstallation</h2>
+
+<h3>Remove Service</h3>
+
+<pre><code>sudo systemctl stop cac-controller
+sudo systemctl disable cac-controller
+sudo rm /etc/systemd/system/cac-controller.service
+sudo systemctl daemon-reload</code></pre>
+
+<h3>Delete Files</h3>
+
+<pre><code>sudo rm -rf /opt/cac-controller</code></pre>
+
+<h3>Remove Node.js (Optional)</h3>
+
+<pre><code>sudo apt purge -y nodejs
+sudo rm -rf /usr/lib/node_modules</code></pre>
+
+<hr>
+<p style="color: var(--text-dim); font-size: 0.85rem;">
+  CAC Controller v1.0.0 &mdash; Copyright &copy; 2025 Dirk Jensen<br>
+  MIT License
+</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,719 @@
+// ═══════════════════════════════════════════
+//  Internationalization (i18n) Module
+//  Supports: de (German), en (English)
+// ═══════════════════════════════════════════
+
+const translations = {
+  de: {
+    // Navigation
+    'nav.player': 'Player',
+    'nav.library': 'Bibliothek',
+    'nav.scanner': 'Scanner',
+    'nav.playlists': 'Playlists',
+    'nav.more': 'Mehr',
+
+    // Player
+    'player.title': 'Player',
+    'player.player1': 'Player 1',
+    'player.player2': 'Player 2',
+    'player.noDisc': 'Keine CD geladen',
+    'player.slot': 'Slot',
+    'player.track': 'Track',
+    'player.loadCD': 'CD laden',
+    'player.slotPlaceholder': 'Slot (1-300)',
+    'player.trackPlaceholder': 'Track',
+    'player.load': 'Laden',
+    'player.selectCD': '-- CD waehlen --',
+    'player.eject': 'Auswerfen',
+    'player.reset': 'Reset',
+    'player.volume': 'Lautstaerke',
+    'player.speed': 'Geschwindigkeit',
+    'player.tracks': 'Tracks',
+    'player.favorite': 'Favorit',
+    'player.loading': 'wird geladen...',
+    'player.slotRange': 'Slot-Nummer 1-300 eingeben',
+
+    // Player modes
+    'mode.park': 'Park',
+    'mode.setup': 'Set Up',
+    'mode.reject': 'Reject',
+    'mode.play': 'Play',
+    'mode.pause': 'Pause',
+    'mode.search': 'Search',
+    'mode.scan': 'Scan',
+    'mode.unset': 'Disc Unset',
+    'mode.load': 'Load',
+    'mode.unload': 'Unload',
+    'mode.unknown': 'Unbekannt',
+
+    // Play modes
+    'playmode.title': 'Wiedergabemodus',
+    'playmode.continuous': 'Fortlaufend (2 Player)',
+    'playmode.continuousDesc': 'Automatisch zum anderen Player wechseln wenn Disc endet',
+    'playmode.gapless': 'Gapless Play',
+    'playmode.gaplessDesc': 'Nahtloser Uebergang zwischen Playern',
+    'playmode.shuffle': 'Shuffle',
+    'playmode.shuffleOff': 'Aus',
+    'playmode.shuffleCD': 'Aktuelle CD',
+    'playmode.shufflePlayers': 'Beide Player',
+    'playmode.shuffleAll': 'Alle CDs',
+
+    // Library
+    'library.title': 'CD Bibliothek',
+    'library.search': 'Suche...',
+    'library.empty': 'Noch keine CDs katalogisiert.',
+    'library.emptyHint': 'Scanne deine CDs im Scanner-Tab.',
+    'library.play': 'Abspielen',
+    'library.edit': 'Bearbeiten',
+    'library.delete': 'Loeschen',
+    'library.deleteConfirm': 'CD wirklich aus der Datenbank loeschen?',
+    'library.deleted': 'CD geloescht',
+    'library.tracks': 'Tracks',
+    'library.unknown': 'Unbekannt',
+    'library.selectMode': 'Auswahlmodus',
+    'library.selectAll': 'Alle',
+    'library.deselectAll': 'Keine',
+    'library.deleteSelected': 'Ausgewaehlte loeschen',
+    'library.deleteAll': 'Alle loeschen',
+    'library.deleteSelectedConfirm': 'CDs wirklich loeschen?',
+    'library.deleteAllConfirm': 'ALLE CDs aus der Datenbank loeschen? Das kann nicht rueckgaengig gemacht werden!',
+    'library.deletedCount': 'CDs geloescht',
+    'library.noneSelected': 'Keine CDs ausgewaehlt',
+    'library.countOf': '{0} von {1} CDs',
+    'library.allGenres': 'Alle Genres',
+    'library.allArtists': 'Alle Interpreten',
+    'library.allYears': 'Alle Jahre',
+    'library.allLabels': 'Alle Labels',
+    'library.sortSlot': 'Slot',
+    'library.sortTitle': 'Titel A-Z',
+    'library.sortArtist': 'Interpret A-Z',
+    'library.sortYearDesc': 'Jahr (neu\u2192alt)',
+    'library.sortYearAsc': 'Jahr (alt\u2192neu)',
+    'library.sortGenre': 'Genre A-Z',
+    'library.resetFilter': 'Filter zuruecksetzen',
+
+    // Edit CD
+    'edit.title': 'CD bearbeiten',
+    'edit.cdTitle': 'Titel',
+    'edit.artist': 'Kuenstler',
+    'edit.year': 'Jahr',
+    'edit.genre': 'Genre',
+    'edit.cover': 'Cover-URL',
+    'edit.notes': 'Notizen',
+    'edit.save': 'Speichern',
+    'edit.saved': 'CD gespeichert',
+
+    // Cover Upload
+    'cover.upload': 'Cover hochladen',
+    'cover.selectFile': 'Datei waehlen',
+    'cover.dragHint': 'Bild waehlen oder hierher ziehen',
+    'cover.uploading': 'Hochladen...',
+    'cover.uploaded': 'Cover hochgeladen',
+    'cover.formatError': 'Nur JPEG, PNG oder WebP erlaubt',
+    'cover.tooLarge': 'ZU GROSS (max 2MB)',
+    'cover.original': 'Original',
+    'cover.output': 'Ausgabe',
+
+    // Scanner
+    'scanner.title': 'CD Scanner',
+    'scanner.single': 'Einzelne CD scannen',
+    'scanner.slotNr': 'Slot-Nr.',
+    'scanner.scan': 'Scannen',
+    'scanner.range': 'Bereich scannen',
+    'scanner.from': 'Von',
+    'scanner.to': 'Bis',
+    'scanner.start': 'Start',
+    'scanner.abort': 'Abbrechen',
+    'scanner.progress': 'Scan-Fortschritt',
+    'scanner.ready': 'Bereit',
+    'scanner.started': 'Scan gestartet',
+    'scanner.aborting': 'Scan wird abgebrochen...',
+    'scanner.complete': 'Scan abgeschlossen',
+    'scanner.allStarted': 'Scan aller Slots gestartet',
+    'scanner.enterSlot': 'Slot-Nummer eingeben',
+    'scanner.tracksScanned': 'Tracks gescannt',
+    'scanner.enterAlbumArtist': 'Jetzt Album/Kuenstler eingeben!',
+
+    // Scan progress messages
+    'scan.loading': 'Lade',
+    'scan.reading': 'Lese TOC von',
+    'scan.empty': 'Keine TOC-Daten',
+    'scan.assignMB': 'Metadaten ueber MusicBrainz-Suche zuweisen',
+    'scan.errorPrefix': 'Fehler -',
+    'scan.started': 'Scan gestartet...',
+    'scan.aborted': 'Scan abgebrochen',
+    'scan.completePrefix': 'Scan abgeschlossen:',
+    'scan.lookup': 'Suche Metadaten fuer',
+    'scan.lookupFailed': 'Metadaten-Suche fehlgeschlagen',
+    'scan.applying': 'Wende Metadaten an fuer',
+    'scan.applied': 'Metadaten angewendet fuer',
+    'scan.applyFailed': 'Metadaten-Anwendung fehlgeschlagen',
+
+    // MusicBrainz
+    'mb.title': 'MusicBrainz Suche',
+    'mb.slot': 'Slot',
+    'mb.query': 'Album / Kuenstler...',
+    'mb.search': 'Suchen',
+    'mb.searching': 'Suche...',
+    'mb.noResults': 'Keine Ergebnisse',
+    'mb.apply': 'Anwenden',
+    'mb.details': 'Details',
+    'mb.applied': 'Metadaten angewendet fuer Slot',
+    'mb.enterQuery': 'Suchbegriff eingeben',
+    'mb.enterSlot': 'Slot-Nummer eingeben (1-300):',
+    'mb.querying': 'MusicBrainz wird abgefragt... (kann bis zu 30 Sekunden dauern)',
+    'mb.searching': 'Suche...',
+    'mb.apply': 'Anwenden',
+    'mb.tracklist': 'Trackliste',
+    'mb.durationExact': 'Dauer passt exakt',
+    'mb.durationClose': 'Dauer weicht leicht ab',
+    'mb.durationFar': 'Dauer weicht stark ab',
+    'mb.fromTocScan': 'aus TOC-Scan',
+
+    // Import
+    'import.title': 'JSON Import',
+    'import.desc': 'CD-Daten aus JSON-Datei importieren',
+    'import.select': 'JSON-Datei auswaehlen',
+    'import.importing': 'Importiere...',
+    'import.success': 'CDs importiert',
+    'import.error': 'Import fehlgeschlagen',
+    'import.format': 'Max. 10 MB. Formate: Array, {cds:[...]}, Objekt mit Slots',
+    'import.preview': 'Vorschau',
+    'import.fixEncoding': 'Encoding reparieren',
+    'import.importSelected': 'Ausgewaehlte importieren',
+    'import.selectAll': 'Alle',
+    'import.deselectAll': 'Keine',
+    'import.slot': 'Slot',
+    'import.titleCol': 'Titel',
+    'import.artistCol': 'Interpret',
+    'import.yearCol': 'Jahr',
+    'import.tracksCol': 'Tracks',
+    'import.status': 'Status',
+    'import.ok': 'OK',
+    'import.warning': 'Warnung',
+    'import.encodingFixed': 'Encoding repariert',
+    'import.placeholder': 'Platzhalter',
+    'import.missingData': 'Fehlende Daten',
+    'import.invalidSlot': 'Ungueltiger Slot',
+    'import.slotSwapped': 'Slots getauscht',
+    'import.invalidDate': 'Ungueltiges Datum',
+    'import.invalidDuration': 'Ungueltige Dauer',
+    'import.fileTooLarge': 'Datei zu gross (max. 10 MB)',
+    'import.parseError': 'JSON konnte nicht gelesen werden',
+    'import.noData': 'Keine CD-Daten gefunden',
+    'import.cancel': 'Abbrechen',
+    'import.cdsFound': 'CDs gefunden',
+    'import.warnings': 'Warnungen',
+    'import.errors': 'Fehler',
+    'import.showFormat': 'Erwartetes JSON-Format anzeigen',
+    'import.formatDesc': 'Array von CD-Objekten (max. 10 MB):',
+    'import.formatSlot': 'Slot-Nr. (1-300) *Pflicht*',
+    'import.formatDiscId': 'CD-Disc-ID',
+    'import.formatAlbum': 'Album-Name',
+    'import.formatDate': 'oder "1990"',
+    'import.formatDuration': 'Gesamtdauer MM:SS',
+    'import.formatTrackDuration': 'Dauer MM:SS',
+    'import.formatAlsoSupported': 'Auch unterstuetzt:',
+    'import.formatFieldNames': 'Feldnamen',
+    'import.changeSlot': 'Slot-Nr. aendern',
+    'import.slotsSwapped': 'Slots getauscht',
+
+    // Playlists
+    'playlists.title': 'Playlists',
+    'playlists.new': '+ Neue Playlist',
+    'playlists.empty': 'Noch keine Playlists erstellt.',
+    'playlists.create': 'Neue Playlist',
+    'playlists.name': 'Name',
+    'playlists.namePlaceholder': 'Playlist-Name',
+    'playlists.description': 'Beschreibung',
+    'playlists.descPlaceholder': 'Optional...',
+    'playlists.createBtn': 'Erstellen',
+    'playlists.created': 'Playlist erstellt',
+    'playlists.delete': 'Loeschen',
+    'playlists.deleteConfirm': 'Playlist wirklich loeschen?',
+    'playlists.deleted': 'Playlist geloescht',
+    'playlists.emptyList': 'Playlist ist leer',
+    'playlists.enterName': 'Name eingeben',
+    'playlists.createFirst': 'Bitte zuerst eine Playlist erstellen',
+    'playlists.addTo': 'Zur Playlist hinzufuegen',
+    'playlists.added': 'Titel hinzugefuegt',
+    'playlists.playAll': 'Alle abspielen',
+    'playlists.end': 'Beenden',
+    'playlists.ended': 'Playlist beendet',
+    'playlists.mode': 'PLAYLIST MODUS',
+    'playlists.remove': 'Entfernen',
+
+    // More
+    'more.title': 'Mehr',
+    'more.history': 'Verlauf',
+    'more.favorites': 'Favoriten',
+    'more.stats': 'Statistik',
+    'more.settings': 'Einstellungen',
+    'more.terminal': 'Terminal',
+
+    // History
+    'history.clear': 'Verlauf loeschen',
+    'history.clearConfirm': 'Verlauf wirklich loeschen?',
+    'history.cleared': 'Verlauf geloescht',
+    'history.empty': 'Kein Verlauf vorhanden',
+
+    // Favorites
+    'favorites.empty': 'Keine Favoriten',
+    'favorites.added': 'Favorit hinzugefuegt',
+    'favorites.removed': 'Favorit entfernt',
+    'favorites.addToPlaylist': 'Zur Playlist hinzufuegen',
+
+    // Ratings
+    'ratings.title': 'Bewertungen',
+    'ratings.empty': 'Keine Bewertungen vorhanden.',
+    'ratings.filter': 'Filter:',
+    'ratings.view': 'Ansicht:',
+    'ratings.all': 'Alle',
+    'ratings.allTracksAndCDs': 'Tracks & CDs',
+    'ratings.onlyTracks': 'Nur Tracks',
+    'ratings.onlyCDs': 'Nur CDs',
+    'ratings.stars': 'Sterne',
+    'ratings.removed': 'Bewertung entfernt',
+
+    // Stats
+    'stats.cds': 'CDs',
+    'stats.tracks': 'Tracks',
+    'stats.plays': 'Wiedergaben',
+    'stats.favorites': 'Favoriten',
+    'stats.playlists': 'Playlists',
+
+    // Settings
+    'settings.serialPort': 'Serieller Port',
+    'settings.baudRate': 'Baudrate',
+    'settings.model': 'Modell',
+    'settings.maxDiscs': 'Max. Discs',
+    'settings.webPort': 'Web-Port',
+    'settings.language': 'Sprache',
+    'settings.langAuto': 'Automatisch',
+    'settings.langDE': 'Deutsch',
+    'settings.langEN': 'English',
+    'settings.save': 'Einstellungen speichern',
+    'settings.saved': 'Einstellungen gespeichert. Neustart erforderlich fuer Aenderungen.',
+    'settings.mbHint': 'MusicBrainz erfordert eine Identifikation. Trage hier deinen App-Namen und eine Kontakt-E-Mail ein. Infos: musicbrainz.org/doc/MusicBrainz_API',
+    'settings.mbAppName': 'App-Name',
+    'settings.mbVersion': 'Version',
+    'settings.mbContact': 'Kontakt (E-Mail)',
+    'settings.nodeTitle': 'Hub / Netzwerk',
+    'settings.nodeHint': 'Damit dieser Wechsler von einem zentralen Hub aus erreichbar ist, vergib einen Namen und einen API-Key.',
+    'settings.nodeName': 'Node-Name',
+    'settings.nodeNamePh': 'z.B. Wohnzimmer-V3000',
+    'settings.nodeRoom': 'Raum',
+    'settings.nodeRoomPh': 'z.B. Wohnzimmer',
+    'settings.nodeApiKey': 'API-Key',
+    'settings.nodeGenKey': 'Generieren',
+
+    // Terminal
+    'terminal.title': 'Serielles Terminal',
+    'terminal.placeholder': 'Befehl eingeben (z.B. ?X)',
+    'terminal.send': 'Senden',
+
+    // Connection
+    'conn.connected': 'Verbunden',
+    'conn.disconnected': 'Verbindung unterbrochen...',
+    'conn.serialConnected': 'Seriell verbunden',
+    'conn.serialDisconnected': 'Seriell getrennt',
+
+    // Tooltips
+    'tip.scanReverse': 'Scan zurueck',
+    'tip.previous': 'Vorheriger Track',
+    'tip.stop': 'Stop',
+    'tip.playPause': 'Play/Pause',
+    'tip.next': 'Naechster Track',
+    'tip.scanForward': 'Scan vor',
+  },
+
+  en: {
+    // Navigation
+    'nav.player': 'Player',
+    'nav.library': 'Library',
+    'nav.scanner': 'Scanner',
+    'nav.playlists': 'Playlists',
+    'nav.more': 'More',
+
+    // Player
+    'player.title': 'Player',
+    'player.player1': 'Player 1',
+    'player.player2': 'Player 2',
+    'player.noDisc': 'No disc loaded',
+    'player.slot': 'Slot',
+    'player.track': 'Track',
+    'player.loadCD': 'Load CD',
+    'player.slotPlaceholder': 'Slot (1-300)',
+    'player.trackPlaceholder': 'Track',
+    'player.load': 'Load',
+    'player.selectCD': '-- Select CD --',
+    'player.eject': 'Eject',
+    'player.reset': 'Reset',
+    'player.volume': 'Volume',
+    'player.speed': 'Speed',
+    'player.tracks': 'Tracks',
+    'player.favorite': 'Favorite',
+    'player.loading': 'loading...',
+    'player.slotRange': 'Enter slot number 1-300',
+
+    // Player modes
+    'mode.park': 'Park',
+    'mode.setup': 'Set Up',
+    'mode.reject': 'Reject',
+    'mode.play': 'Play',
+    'mode.pause': 'Pause',
+    'mode.search': 'Search',
+    'mode.scan': 'Scan',
+    'mode.unset': 'Disc Unset',
+    'mode.load': 'Load',
+    'mode.unload': 'Unload',
+    'mode.unknown': 'Unknown',
+
+    // Play modes
+    'playmode.title': 'Play Mode',
+    'playmode.continuous': 'Continuous (2 Players)',
+    'playmode.continuousDesc': 'Auto-switch to other player when disc ends',
+    'playmode.gapless': 'Gapless Play',
+    'playmode.gaplessDesc': 'Seamless transition between players',
+    'playmode.shuffle': 'Shuffle',
+    'playmode.shuffleOff': 'Off',
+    'playmode.shuffleCD': 'Current CD',
+    'playmode.shufflePlayers': 'Both Players',
+    'playmode.shuffleAll': 'All CDs',
+
+    // Library
+    'library.title': 'CD Library',
+    'library.search': 'Search...',
+    'library.empty': 'No CDs catalogued yet.',
+    'library.emptyHint': 'Scan your CDs in the Scanner tab.',
+    'library.play': 'Play',
+    'library.edit': 'Edit',
+    'library.delete': 'Delete',
+    'library.deleteConfirm': 'Really delete this CD from the database?',
+    'library.deleted': 'CD deleted',
+    'library.tracks': 'Tracks',
+    'library.unknown': 'Unknown',
+    'library.selectMode': 'Select mode',
+    'library.selectAll': 'All',
+    'library.deselectAll': 'None',
+    'library.deleteSelected': 'Delete selected',
+    'library.deleteAll': 'Delete all',
+    'library.deleteSelectedConfirm': 'Really delete these CDs?',
+    'library.deleteAllConfirm': 'Delete ALL CDs from the database? This cannot be undone!',
+    'library.deletedCount': 'CDs deleted',
+    'library.noneSelected': 'No CDs selected',
+    'library.countOf': '{0} of {1} CDs',
+    'library.allGenres': 'All Genres',
+    'library.allArtists': 'All Artists',
+    'library.allYears': 'All Years',
+    'library.allLabels': 'All Labels',
+    'library.sortSlot': 'Slot',
+    'library.sortTitle': 'Title A-Z',
+    'library.sortArtist': 'Artist A-Z',
+    'library.sortYearDesc': 'Year (new\u2192old)',
+    'library.sortYearAsc': 'Year (old\u2192new)',
+    'library.sortGenre': 'Genre A-Z',
+    'library.resetFilter': 'Reset filters',
+
+    // Edit CD
+    'edit.title': 'Edit CD',
+    'edit.cdTitle': 'Title',
+    'edit.artist': 'Artist',
+    'edit.year': 'Year',
+    'edit.genre': 'Genre',
+    'edit.cover': 'Cover URL',
+    'edit.notes': 'Notes',
+    'edit.save': 'Save',
+    'edit.saved': 'CD saved',
+
+    // Cover Upload
+    'cover.upload': 'Upload cover',
+    'cover.selectFile': 'Choose file',
+    'cover.dragHint': 'Choose image or drag here',
+    'cover.uploading': 'Uploading...',
+    'cover.uploaded': 'Cover uploaded',
+    'cover.formatError': 'Only JPEG, PNG or WebP allowed',
+    'cover.tooLarge': 'TOO LARGE (max 2MB)',
+    'cover.original': 'Original',
+    'cover.output': 'Output',
+
+    // Scanner
+    'scanner.title': 'CD Scanner',
+    'scanner.single': 'Scan single CD',
+    'scanner.slotNr': 'Slot no.',
+    'scanner.scan': 'Scan',
+    'scanner.range': 'Scan range',
+    'scanner.from': 'From',
+    'scanner.to': 'To',
+    'scanner.start': 'Start',
+    'scanner.abort': 'Abort',
+    'scanner.progress': 'Scan Progress',
+    'scanner.ready': 'Ready',
+    'scanner.started': 'Scan started',
+    'scanner.aborting': 'Aborting scan...',
+    'scanner.complete': 'Scan complete',
+    'scanner.allStarted': 'Full scan started',
+    'scanner.enterSlot': 'Enter slot number',
+    'scanner.tracksScanned': 'tracks scanned',
+    'scanner.enterAlbumArtist': 'Now enter album/artist!',
+
+    // Scan progress messages
+    'scan.loading': 'Loading',
+    'scan.reading': 'Reading TOC of',
+    'scan.empty': 'No TOC data',
+    'scan.assignMB': 'Assign metadata via MusicBrainz search',
+    'scan.errorPrefix': 'Error -',
+    'scan.started': 'Scan started...',
+    'scan.aborted': 'Scan aborted',
+    'scan.completePrefix': 'Scan complete:',
+    'scan.lookup': 'Searching metadata for',
+    'scan.lookupFailed': 'Metadata search failed',
+    'scan.applying': 'Applying metadata for',
+    'scan.applied': 'Metadata applied for',
+    'scan.applyFailed': 'Metadata apply failed',
+
+    // MusicBrainz
+    'mb.title': 'MusicBrainz Search',
+    'mb.slot': 'Slot',
+    'mb.query': 'Album / Artist...',
+    'mb.search': 'Search',
+    'mb.searching': 'Searching...',
+    'mb.noResults': 'No results',
+    'mb.apply': 'Apply',
+    'mb.details': 'Details',
+    'mb.applied': 'Metadata applied for slot',
+    'mb.enterQuery': 'Enter search query',
+    'mb.enterSlot': 'Enter slot number (1-300):',
+    'mb.querying': 'Querying MusicBrainz... (may take up to 30 seconds)',
+    'mb.searching': 'Searching...',
+    'mb.apply': 'Apply',
+    'mb.tracklist': 'Tracklist',
+    'mb.durationExact': 'Duration matches exactly',
+    'mb.durationClose': 'Duration slightly off',
+    'mb.durationFar': 'Duration far off',
+    'mb.fromTocScan': 'from TOC scan',
+
+    // Import
+    'import.title': 'JSON Import',
+    'import.desc': 'Import CD data from JSON file',
+    'import.select': 'Select JSON file',
+    'import.importing': 'Importing...',
+    'import.success': 'CDs imported',
+    'import.error': 'Import failed',
+    'import.format': 'Max 10 MB. Formats: Array, {cds:[...]}, keyed object',
+    'import.preview': 'Preview',
+    'import.fixEncoding': 'Fix encoding',
+    'import.importSelected': 'Import selected',
+    'import.selectAll': 'All',
+    'import.deselectAll': 'None',
+    'import.slot': 'Slot',
+    'import.titleCol': 'Title',
+    'import.artistCol': 'Artist',
+    'import.yearCol': 'Year',
+    'import.tracksCol': 'Tracks',
+    'import.status': 'Status',
+    'import.ok': 'OK',
+    'import.warning': 'Warning',
+    'import.encodingFixed': 'Encoding fixed',
+    'import.placeholder': 'Placeholder',
+    'import.missingData': 'Missing data',
+    'import.invalidSlot': 'Invalid slot',
+    'import.slotSwapped': 'Slots swapped',
+    'import.invalidDate': 'Invalid date',
+    'import.invalidDuration': 'Invalid duration',
+    'import.fileTooLarge': 'File too large (max 10 MB)',
+    'import.parseError': 'Could not parse JSON',
+    'import.noData': 'No CD data found',
+    'import.cancel': 'Cancel',
+    'import.cdsFound': 'CDs found',
+    'import.warnings': 'warnings',
+    'import.errors': 'errors',
+    'import.showFormat': 'Show expected JSON format',
+    'import.formatDesc': 'Array of CD objects (max 10 MB):',
+    'import.formatSlot': 'Slot no. (1-300) *required*',
+    'import.formatDiscId': 'CD disc ID',
+    'import.formatAlbum': 'Album name',
+    'import.formatDate': 'or "1990"',
+    'import.formatDuration': 'Total duration MM:SS',
+    'import.formatTrackDuration': 'Duration MM:SS',
+    'import.formatAlsoSupported': 'Also supported:',
+    'import.formatFieldNames': 'field names',
+    'import.changeSlot': 'Change slot no.',
+    'import.slotsSwapped': 'Slots swapped',
+
+    // Playlists
+    'playlists.title': 'Playlists',
+    'playlists.new': '+ New Playlist',
+    'playlists.empty': 'No playlists created yet.',
+    'playlists.create': 'New Playlist',
+    'playlists.name': 'Name',
+    'playlists.namePlaceholder': 'Playlist name',
+    'playlists.description': 'Description',
+    'playlists.descPlaceholder': 'Optional...',
+    'playlists.createBtn': 'Create',
+    'playlists.created': 'Playlist created',
+    'playlists.delete': 'Delete',
+    'playlists.deleteConfirm': 'Really delete this playlist?',
+    'playlists.deleted': 'Playlist deleted',
+    'playlists.emptyList': 'Playlist is empty',
+    'playlists.enterName': 'Enter name',
+    'playlists.createFirst': 'Please create a playlist first',
+    'playlists.addTo': 'Add to playlist',
+    'playlists.added': 'Track added',
+    'playlists.playAll': 'Play all',
+    'playlists.end': 'Stop',
+    'playlists.ended': 'Playlist ended',
+    'playlists.mode': 'PLAYLIST MODE',
+    'playlists.remove': 'Remove',
+
+    // More
+    'more.title': 'More',
+    'more.history': 'History',
+    'more.favorites': 'Favorites',
+    'more.stats': 'Statistics',
+    'more.settings': 'Settings',
+    'more.terminal': 'Terminal',
+
+    // History
+    'history.clear': 'Clear history',
+    'history.clearConfirm': 'Really clear history?',
+    'history.cleared': 'History cleared',
+    'history.empty': 'No play history',
+
+    // Favorites
+    'favorites.empty': 'No favorites',
+    'favorites.added': 'Favorite added',
+    'favorites.removed': 'Favorite removed',
+    'favorites.addToPlaylist': 'Add to playlist',
+
+    // Ratings
+    'ratings.title': 'Ratings',
+    'ratings.empty': 'No ratings yet.',
+    'ratings.filter': 'Filter:',
+    'ratings.view': 'View:',
+    'ratings.all': 'All',
+    'ratings.allTracksAndCDs': 'Tracks & CDs',
+    'ratings.onlyTracks': 'Tracks only',
+    'ratings.onlyCDs': 'CDs only',
+    'ratings.stars': 'stars',
+    'ratings.removed': 'Rating removed',
+
+    // Stats
+    'stats.cds': 'CDs',
+    'stats.tracks': 'Tracks',
+    'stats.plays': 'Plays',
+    'stats.favorites': 'Favorites',
+    'stats.playlists': 'Playlists',
+
+    // Settings
+    'settings.serialPort': 'Serial Port',
+    'settings.baudRate': 'Baud Rate',
+    'settings.model': 'Model',
+    'settings.maxDiscs': 'Max Discs',
+    'settings.webPort': 'Web Port',
+    'settings.language': 'Language',
+    'settings.langAuto': 'Automatic',
+    'settings.langDE': 'Deutsch',
+    'settings.langEN': 'English',
+    'settings.save': 'Save settings',
+    'settings.saved': 'Settings saved. Restart required for changes.',
+    'settings.mbHint': 'MusicBrainz requires identification. Enter your app name and a contact email here. Info: musicbrainz.org/doc/MusicBrainz_API',
+    'settings.mbAppName': 'App Name',
+    'settings.mbVersion': 'Version',
+    'settings.mbContact': 'Contact (E-Mail)',
+    'settings.nodeTitle': 'Hub / Network',
+    'settings.nodeHint': 'To make this changer reachable from a central hub, assign a name and an API key.',
+    'settings.nodeName': 'Node Name',
+    'settings.nodeNamePh': 'e.g. Living Room V3000',
+    'settings.nodeRoom': 'Room',
+    'settings.nodeRoomPh': 'e.g. Living Room',
+    'settings.nodeApiKey': 'API Key',
+    'settings.nodeGenKey': 'Generate',
+
+    // Terminal
+    'terminal.title': 'Serial Terminal',
+    'terminal.placeholder': 'Enter command (e.g. ?X)',
+    'terminal.send': 'Send',
+
+    // Connection
+    'conn.connected': 'Connected',
+    'conn.disconnected': 'Connection lost...',
+    'conn.serialConnected': 'Serial connected',
+    'conn.serialDisconnected': 'Serial disconnected',
+
+    // Tooltips
+    'tip.scanReverse': 'Scan reverse',
+    'tip.previous': 'Previous track',
+    'tip.stop': 'Stop',
+    'tip.playPause': 'Play/Pause',
+    'tip.next': 'Next track',
+    'tip.scanForward': 'Scan forward',
+  }
+};
+
+let currentLang = 'en';
+
+// Detect language: stored preference > browser > system > fallback
+function detectLanguage() {
+  // 1. Check localStorage for manual selection
+  const stored = localStorage.getItem('cac_language');
+  if (stored && stored !== 'auto') {
+    return stored === 'de' ? 'de' : 'en';
+  }
+
+  // 2. Check browser language
+  const browserLang = navigator.language || navigator.userLanguage || '';
+  if (browserLang.startsWith('de')) return 'de';
+
+  // 3. Fallback to English
+  return 'en';
+}
+
+function setLanguage(lang) {
+  if (lang === 'auto') {
+    localStorage.setItem('cac_language', 'auto');
+    currentLang = detectLanguage();
+  } else {
+    currentLang = (lang === 'de') ? 'de' : 'en';
+    localStorage.setItem('cac_language', currentLang);
+  }
+  applyTranslations();
+}
+
+function t(key, ...args) {
+  let text = translations[currentLang]?.[key] || translations['en']?.[key] || key;
+  // Simple placeholder replacement: {0}, {1}, ...
+  args.forEach((arg, i) => {
+    text = text.replace(`{${i}}`, arg);
+  });
+  return text;
+}
+
+function applyTranslations() {
+  // Update all elements with data-i18n attribute
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+
+  // Update all elements with data-i18n-placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+
+  // Update all elements with data-i18n-title
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
+}
+
+function getLanguage() {
+  return currentLang;
+}
+
+function getStoredLanguagePref() {
+  return localStorage.getItem('cac_language') || 'auto';
+}
+
+// Initialize
+currentLang = detectLanguage();

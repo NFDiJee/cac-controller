@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>CAC Controller</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+
+<div class="conn-status hidden" id="connStatus"></div>
+<div class="toast-container" id="toasts"></div>
+
+<div class="app">
+
+  <!-- PLAYER PAGE -->
+  <div class="page active" id="page-player">
+
+    <div class="player-tabs">
+      <button class="player-tab active" data-player="1" data-i18n="player.player1">Player 1</button>
+      <button class="player-tab" data-player="2" data-i18n="player.player2">Player 2</button>
+    </div>
+
+    <div class="now-playing" id="nowPlaying">
+      <div class="album-art" id="albumArt">
+        <span class="placeholder" id="artPlaceholder">&#9834;</span>
+      </div>
+      <div class="status-badge status-unset" id="statusBadge" data-i18n="mode.unset">Disc Unset</div>
+      <div class="title" id="npTitle" data-i18n="player.noDisc">Keine CD geladen</div>
+      <div class="artist" id="npArtist">&nbsp;</div>
+      <div class="time" id="npTime">--:--</div>
+      <div class="disc-time" id="npDiscTime"></div>
+      <div class="info" id="npInfo">Slot --- | Track --</div>
+      <div class="np-actions">
+        <button class="btn-icon" id="btnFavTrack" onclick="toggleFavTrack()" title="Favorit">&#9825;</button>
+        <div class="star-rating" id="npStars">
+          <span onclick="rateCurrentTrack(1)">&#9734;</span>
+          <span onclick="rateCurrentTrack(2)">&#9734;</span>
+          <span onclick="rateCurrentTrack(3)">&#9734;</span>
+          <span onclick="rateCurrentTrack(4)">&#9734;</span>
+          <span onclick="rateCurrentTrack(5)">&#9734;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="playlist-banner" id="playlistBanner" style="display:none">
+      <div class="playlist-banner-info">
+        <div class="playlist-banner-label" data-i18n="playlists.mode">PLAYLIST MODUS</div>
+        <div class="playlist-banner-name" id="playlistBannerName"></div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="stopPlaylist()" data-i18n="playlists.end">Beenden</button>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn" onclick="playerAction('scan-reverse')" data-i18n-title="tip.scanReverse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20L9 12l10-8v16z"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
+      </button>
+      <button class="ctrl-btn" onclick="playerAction('previous')" data-i18n-title="tip.previous">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
+      </button>
+      <button class="ctrl-btn" onclick="playerAction('stop')" data-i18n-title="tip.stop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+      </button>
+      <button class="ctrl-btn primary" id="btnPlayPause" onclick="togglePlayPause()" data-i18n-title="tip.playPause">
+        <svg viewBox="0 0 24 24" fill="currentColor" id="iconPlay"><polygon points="6,4 20,12 6,20"/></svg>
+      </button>
+      <button class="ctrl-btn" onclick="playerAction('next')" data-i18n-title="tip.next">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+      </button>
+      <button class="ctrl-btn" onclick="playerAction('scan-forward')" data-i18n-title="tip.scanForward">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l10 8-10 8V4z"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="player.loadCD">CD laden</span>
+      </div>
+      <div class="selector-row">
+        <input type="number" id="discInput" min="1" max="300" data-i18n-placeholder="player.slotPlaceholder">
+        <input type="number" id="trackInput" min="1" max="99" data-i18n-placeholder="player.trackPlaceholder">
+        <button class="btn btn-primary" onclick="loadDisc()" data-i18n="player.load">Laden</button>
+      </div>
+      <div class="selector-row">
+        <select id="cdSelect" onchange="onCDSelect(this.value)">
+          <option value="" data-i18n="player.selectCD">-- CD waehlen --</option>
+        </select>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-sm" onclick="playerAction('eject')" data-i18n="player.eject">Auswerfen</button>
+        <button class="btn btn-sm" onclick="playerAction('reset')" data-i18n="player.reset">Reset</button>
+      </div>
+    </div>
+
+    <!-- Play Modes -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="playmode.title">Wiedergabemodus</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="chkContinuous" onchange="setPlayMode()">
+          <div>
+            <div style="font-size:0.85rem;font-weight:500" data-i18n="playmode.continuous">Fortlaufend (2 Player)</div>
+            <div style="font-size:0.7rem;color:var(--text-muted)" data-i18n="playmode.continuousDesc">Automatisch zum anderen Player wechseln</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="chkGapless" onchange="setPlayMode()">
+          <div>
+            <div style="font-size:0.85rem;font-weight:500" data-i18n="playmode.gapless">Gapless Play</div>
+            <div style="font-size:0.7rem;color:var(--text-muted)" data-i18n="playmode.gaplessDesc">Nahtloser Uebergang zwischen Playern</div>
+          </div>
+        </label>
+        <div>
+          <div style="font-size:0.85rem;font-weight:500;margin-bottom:4px" data-i18n="playmode.shuffle">Shuffle</div>
+          <div class="btn-group">
+            <button class="btn btn-sm shuffle-btn active" data-shuffle="off" onclick="setShuffle('off')" data-i18n="playmode.shuffleOff">Aus</button>
+            <button class="btn btn-sm shuffle-btn" data-shuffle="cd" onclick="setShuffle('cd')" data-i18n="playmode.shuffleCD">Aktuelle CD</button>
+            <button class="btn btn-sm shuffle-btn" data-shuffle="players" onclick="setShuffle('players')" data-i18n="playmode.shufflePlayers">Beide Player</button>
+            <button class="btn btn-sm shuffle-btn" data-shuffle="all" onclick="setShuffle('all')" data-i18n="playmode.shuffleAll">Alle CDs</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="trackListCard" style="display:none">
+      <div class="card-header">
+        <span class="card-title" id="trackListTitle" data-i18n="player.tracks">Tracks</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="star-rating star-rating-sm" id="cdStars"></div>
+          <button class="btn btn-sm" onclick="toggleFavCD()">&#9825; <span data-i18n="player.favorite">Favorit</span></button>
+        </div>
+      </div>
+      <ul class="track-list" id="trackList"></ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="player.volume">Lautstaerke</span>
+        <span class="slider-value" id="volValue">100%</span>
+      </div>
+      <input type="range" id="volumeSlider" min="0" max="255" value="255" oninput="onVolumeChange(this.value)">
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="player.speed">Geschwindigkeit</span>
+        <span class="slider-value" id="speedValue">100%</span>
+      </div>
+      <input type="range" id="speedSlider" min="90" max="110" value="100" oninput="onSpeedChange(this.value)">
+    </div>
+  </div>
+
+  <!-- LIBRARY PAGE -->
+  <div class="page" id="page-library">
+    <div class="page-title" data-i18n="library.title">CD Bibliothek</div>
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="librarySearch" data-i18n-placeholder="library.search" oninput="applyLibraryFilters()">
+    </div>
+    <div class="library-filters" id="libraryFilters">
+      <select id="filterGenre" onchange="applyLibraryFilters()"><option value="" data-i18n="library.allGenres">Alle Genres</option></select>
+      <select id="filterArtist" onchange="applyLibraryFilters()"><option value="" data-i18n="library.allArtists">Alle Interpreten</option></select>
+      <select id="filterYear" onchange="applyLibraryFilters()"><option value="" data-i18n="library.allYears">Alle Jahre</option></select>
+      <select id="filterLabel" onchange="applyLibraryFilters()"><option value="" data-i18n="library.allLabels">Alle Labels</option></select>
+      <select id="filterSort" onchange="applyLibraryFilters()">
+        <option value="slot" data-i18n="library.sortSlot">Slot</option>
+        <option value="title" data-i18n="library.sortTitle">Titel A-Z</option>
+        <option value="artist" data-i18n="library.sortArtist">Interpret A-Z</option>
+        <option value="year-desc" data-i18n="library.sortYearDesc">Jahr (neu→alt)</option>
+        <option value="year-asc" data-i18n="library.sortYearAsc">Jahr (alt→neu)</option>
+        <option value="genre" data-i18n="library.sortGenre">Genre A-Z</option>
+      </select>
+      <button class="btn btn-sm" onclick="resetLibraryFilters()" data-i18n-title="library.resetFilter" title="Filter zuruecksetzen">&#10005;</button>
+    </div>
+    <div class="library-toolbar">
+      <div class="library-count" id="libraryCount"></div>
+      <div class="library-bulk-actions" id="libraryBulkActions">
+        <button class="btn btn-sm" id="btnSelectMode" onclick="toggleSelectMode()" data-i18n-title="library.selectMode" title="Auswahlmodus">&#9745;</button>
+        <button class="btn btn-sm" id="btnSelectAll" onclick="librarySelectAll()" style="display:none" data-i18n="library.selectAll">Alle</button>
+        <button class="btn btn-sm" id="btnDeselectAll" onclick="libraryDeselectAll()" style="display:none" data-i18n="library.deselectAll">Keine</button>
+        <button class="btn btn-danger btn-sm" id="btnDeleteSelected" onclick="deleteSelectedCDs()" style="display:none" data-i18n="library.deleteSelected">Ausgewaehlte loeschen</button>
+        <button class="btn btn-danger btn-sm" id="btnDeleteAll" onclick="deleteAllCDs()" style="display:none" data-i18n="library.deleteAll">Alle loeschen</button>
+      </div>
+    </div>
+    <div class="cd-grid" id="cdGrid"></div>
+    <div class="empty-state" id="libraryEmpty" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+      <p><span data-i18n="library.empty">Noch keine CDs katalogisiert.</span><br><span data-i18n="library.emptyHint">Scanne deine CDs im Scanner-Tab.</span></p>
+    </div>
+  </div>
+
+  <!-- SCANNER PAGE -->
+  <div class="page" id="page-scanner">
+    <div class="page-title" data-i18n="scanner.title">CD Scanner</div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title" data-i18n="scanner.single">Einzelne CD scannen</span></div>
+      <div class="selector-row">
+        <input type="number" id="scanSlot" min="1" max="300" data-i18n-placeholder="scanner.slotNr">
+        <button class="btn btn-primary" onclick="scanSingleCD()" data-i18n="scanner.scan">Scannen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title" data-i18n="scanner.range">Bereich scannen</span></div>
+      <div class="selector-row">
+        <input type="number" id="scanStart" min="1" max="300" value="1" data-i18n-placeholder="scanner.from">
+        <input type="number" id="scanEnd" min="1" max="300" value="300" data-i18n-placeholder="scanner.to">
+        <button class="btn btn-primary" onclick="scanRange()" data-i18n="scanner.start">Start</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="abortScan()" style="margin-top:8px" data-i18n="scanner.abort">Abbrechen</button>
+    </div>
+
+    <div class="scan-progress" id="scanProgress" style="display:none">
+      <div class="card-title" style="margin-bottom:8px" data-i18n="scanner.progress">Scan-Fortschritt</div>
+      <div class="progress-bar"><div class="progress-fill" id="scanFill" style="width:0%"></div></div>
+      <div class="progress-text" id="scanText" data-i18n="scanner.ready">Bereit</div>
+    </div>
+
+    <div class="card" style="margin-top:12px" id="mbCard">
+      <div class="card-header"><span class="card-title" data-i18n="mb.title">MusicBrainz Suche</span></div>
+      <div class="selector-row">
+        <input type="number" id="mbSlot" min="1" max="300" data-i18n-placeholder="mb.slot" placeholder="Slot">
+        <input type="text" id="mbQuery" data-i18n-placeholder="mb.query" placeholder="Album / Artist" onkeydown="if(event.key==='Enter')searchMusicBrainz()">
+      </div>
+      <div class="selector-row" id="mbTocFilter" style="display:none">
+        <input type="number" id="mbTracks" min="1" max="99" placeholder="Tracks" style="max-width:80px" readonly>
+        <input type="text" id="mbDuration" placeholder="MM:SS" style="max-width:80px" readonly>
+        <span style="font-size:0.7rem;color:var(--text-muted);align-self:center" data-i18n="mb.fromTocScan">&#x2190; aus TOC-Scan</span>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="searchMusicBrainz()" style="margin-top:8px" data-i18n="mb.search">Suchen</button>
+      <div id="mbResults" style="margin-top:12px"></div>
+    </div>
+
+    <!-- JSON Import -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-header"><span class="card-title" data-i18n="import.title">JSON Import</span></div>
+
+      <!-- Format description -->
+      <details class="import-format-info" style="margin-bottom:10px">
+        <summary style="font-size:0.78rem;cursor:pointer;color:var(--primary)" data-i18n="import.showFormat">Erwartetes JSON-Format anzeigen</summary>
+        <div class="import-format-box">
+          <p style="font-size:0.72rem;color:var(--text-dim);margin:6px 0 4px" data-i18n="import.formatDesc">Array von CD-Objekten (max. 10 MB):</p>
+<pre style="font-size:0.68rem;background:var(--bg-input);padding:8px;border-radius:4px;overflow-x:auto;color:var(--text);margin:0" id="importFormatPre"></pre>
+          <p style="font-size:0.68rem;color:var(--text-dim);margin:6px 0 0" id="importFormatAlso"></p>
+        </div>
+      </details>
+
+      <input type="file" id="jsonFileInput" accept=".json" style="display:none" onchange="handleJSONImport(this)">
+      <div id="importSelectArea">
+        <button class="btn btn-block" onclick="document.getElementById('jsonFileInput').click()" data-i18n="import.select">JSON-Datei auswaehlen</button>
+      </div>
+      <div id="importStatus" style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)"></div>
+      <!-- Preview area (hidden until file loaded) -->
+      <div id="importPreview" style="display:none">
+        <div class="import-toolbar">
+          <div class="import-stats" id="importStats"></div>
+          <div class="import-actions">
+            <button class="btn btn-sm" onclick="importSelectAll(true)" data-i18n="import.selectAll">Alle</button>
+            <button class="btn btn-sm" onclick="importSelectAll(false)" data-i18n="import.deselectAll">Keine</button>
+            <button class="btn btn-sm" onclick="importFixEncoding()" data-i18n="import.fixEncoding">Encoding reparieren</button>
+          </div>
+        </div>
+        <div class="import-table-wrap">
+          <table class="import-table" id="importTable">
+            <thead>
+              <tr>
+                <th style="width:30px"><input type="checkbox" id="importCheckAll" checked onchange="importSelectAll(this.checked)"></th>
+                <th data-i18n="import.slot">Slot</th>
+                <th data-i18n="import.titleCol">Titel</th>
+                <th data-i18n="import.artistCol">Interpret</th>
+                <th data-i18n="import.yearCol">Jahr</th>
+                <th data-i18n="import.tracksCol">Tracks</th>
+                <th data-i18n="import.status">Status</th>
+              </tr>
+            </thead>
+            <tbody id="importTableBody"></tbody>
+          </table>
+        </div>
+        <div class="import-bottom-actions">
+          <button class="btn btn-primary" onclick="executeImport()" data-i18n="import.importSelected">Ausgewaehlte importieren</button>
+          <button class="btn" onclick="cancelImportPreview()" data-i18n="import.cancel">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYLISTS PAGE -->
+  <div class="page" id="page-playlists">
+    <div class="page-title" data-i18n="playlists.title">Playlists</div>
+    <button class="btn btn-primary btn-block" onclick="showCreatePlaylist()" style="margin-bottom:12px" data-i18n="playlists.new">+ Neue Playlist</button>
+    <div id="playlistList"></div>
+    <div class="empty-state" id="playlistEmpty" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <p data-i18n="playlists.empty">Noch keine Playlists erstellt.</p>
+    </div>
+  </div>
+
+  <!-- MORE PAGE -->
+  <div class="page" id="page-more">
+    <div class="page-title" data-i18n="more.title">Mehr</div>
+
+    <div class="tab-bar">
+      <button class="tab active" onclick="showMoreTab('history')" data-i18n="more.history">Verlauf</button>
+      <button class="tab" onclick="showMoreTab('favorites')" data-i18n="more.favorites">Favoriten</button>
+      <button class="tab" onclick="showMoreTab('ratings')" data-i18n="ratings.title">Bewertungen</button>
+      <button class="tab" onclick="showMoreTab('stats')" data-i18n="more.stats">Statistik</button>
+      <button class="tab" onclick="showMoreTab('settings')" data-i18n="more.settings">Einstellungen</button>
+      <button class="tab" onclick="showMoreTab('terminal')" data-i18n="more.terminal">Terminal</button>
+    </div>
+
+    <div id="moreContent">
+      <div class="more-section active" id="section-history">
+        <div id="historyList"></div>
+        <button class="btn btn-danger btn-sm" onclick="clearHistory()" style="margin-top:12px" data-i18n="history.clear">Verlauf loeschen</button>
+      </div>
+
+      <div class="more-section" id="section-favorites" style="display:none">
+        <div id="favoritesList"></div>
+      </div>
+
+      <div class="more-section" id="section-ratings" style="display:none">
+        <div class="selector-row" style="margin-bottom:12px">
+          <label style="font-size:0.85rem;white-space:nowrap" data-i18n="ratings.filter">Filter:</label>
+          <select id="ratingsFilter" class="form-input" onchange="loadRatings()" style="max-width:200px">
+            <option value="0" data-i18n="ratings.all">Alle</option>
+            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;</option>
+            <option value="4">&#9733;&#9733;&#9733;&#9733;+</option>
+            <option value="3">&#9733;&#9733;&#9733;+</option>
+            <option value="2">&#9733;&#9733;+</option>
+            <option value="1">&#9733;+</option>
+          </select>
+          <label style="font-size:0.85rem;white-space:nowrap" data-i18n="ratings.view">Ansicht:</label>
+          <select id="ratingsView" class="form-input" onchange="loadRatings()" style="max-width:200px">
+            <option value="all" data-i18n="ratings.allTracksAndCDs">Tracks & CDs</option>
+            <option value="tracks" data-i18n="ratings.onlyTracks">Nur Tracks</option>
+            <option value="cds" data-i18n="ratings.onlyCDs">Nur CDs</option>
+          </select>
+        </div>
+        <div id="ratingsList"></div>
+      </div>
+
+      <div class="more-section" id="section-stats" style="display:none">
+        <div class="stats-grid" id="statsGrid"></div>
+      </div>
+
+      <div class="more-section" id="section-settings" style="display:none">
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.language">Sprache</label>
+            <select class="form-input" id="settLanguage" onchange="changeLanguage(this.value)">
+              <option value="auto" data-i18n="settings.langAuto">Automatisch</option>
+              <option value="de" data-i18n="settings.langDE">Deutsch</option>
+              <option value="en" data-i18n="settings.langEN">English</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.serialPort">Serieller Port</label>
+            <input type="text" class="form-input" id="settSerialPort" value="/dev/ttyUSB0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.baudRate">Baudrate</label>
+            <select class="form-input" id="settBaudRate">
+              <option value="4800">4800</option>
+              <option value="9600" selected>9600</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.model">Modell</label>
+            <select class="form-input" id="settModel">
+              <option value="CAC-V180M">CAC-V180M</option>
+              <option value="CAC-V3000" selected>CAC-V3000</option>
+              <option value="CAC-V3200">CAC-V3200</option>
+              <option value="CAC-V5000">CAC-V5000</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.maxDiscs">Max. Discs</label>
+            <input type="number" class="form-input" id="settMaxDiscs" value="300">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.webPort">Web-Port</label>
+            <input type="number" class="form-input" id="settWebPort" value="3000">
+          </div>
+          <div class="card-title" style="margin-top:16px;margin-bottom:8px">MusicBrainz API</div>
+          <p style="font-size:0.72rem;color:var(--yellow);margin-bottom:10px" data-i18n="settings.mbHint">MusicBrainz erfordert eine Identifikation. Trage hier deinen App-Namen und eine Kontakt-E-Mail ein. Infos: musicbrainz.org/doc/MusicBrainz_API</p>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.mbAppName">App-Name</label>
+            <input type="text" class="form-input" id="settMbAppName" value="CACController" placeholder="z.B. MeineCDApp">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.mbVersion">Version</label>
+            <input type="text" class="form-input" id="settMbAppVersion" value="1.0" placeholder="1.0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.mbContact">Kontakt (E-Mail)</label>
+            <input type="text" class="form-input" id="settMbContact" value="" placeholder="deine@email.de">
+          </div>
+          <div class="card-title" style="margin-top:16px;margin-bottom:8px" data-i18n="settings.nodeTitle">Hub / Netzwerk</div>
+          <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:10px" data-i18n="settings.nodeHint">Damit dieser Wechsler von einem zentralen Hub aus erreichbar ist, vergib einen Namen und einen API-Key.</p>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.nodeName">Node-Name</label>
+            <input type="text" class="form-input" id="settNodeName" value="" data-i18n-placeholder="settings.nodeNamePh">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.nodeRoom">Raum</label>
+            <input type="text" class="form-input" id="settNodeRoom" value="" data-i18n-placeholder="settings.nodeRoomPh">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.nodeApiKey">API-Key</label>
+            <div class="selector-row">
+              <input type="text" class="form-input" id="settNodeApiKey" value="" placeholder="z.B. mein-geheimer-key">
+              <button class="btn btn-dim" onclick="generateApiKey()" data-i18n="settings.nodeGenKey">Generieren</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="saveSettings()" data-i18n="settings.save">Einstellungen speichern</button>
+        </div>
+      </div>
+
+      <div class="more-section" id="section-terminal" style="display:none">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px" data-i18n="terminal.title">Serielles Terminal</div>
+          <div id="termOutput" style="height:200px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-family:var(--font-mono);font-size:0.75rem;margin-bottom:8px;white-space:pre-wrap;color:var(--green)"></div>
+          <div class="selector-row">
+            <input type="text" id="termInput" data-i18n-placeholder="terminal.placeholder" onkeydown="if(event.key==='Enter')sendTerminal()">
+            <button class="btn btn-primary" onclick="sendTerminal()" data-i18n="terminal.send">Senden</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-item active" onclick="showPage('player')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>
+    <span data-i18n="nav.player">Player</span>
+  </button>
+  <button class="nav-item" onclick="showPage('library')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+    <span data-i18n="nav.library">Bibliothek</span>
+  </button>
+  <button class="nav-item" onclick="showPage('scanner')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17,6 23,6 23,12"/></svg>
+    <span data-i18n="nav.scanner">Scanner</span>
+  </button>
+  <button class="nav-item" onclick="showPage('playlists')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    <span data-i18n="nav.playlists">Playlists</span>
+  </button>
+  <button class="nav-item" onclick="showPage('more')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    <span data-i18n="nav.more">Mehr</span>
+  </button>
+</nav>
+
+<!-- CD Detail Modal -->
+<div class="modal-overlay" id="cdDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">CD Details</span>
+      <button class="modal-close" onclick="closeModal('cdDetailModal')">&times;</button>
+    </div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Playlist Create Modal -->
+<div class="modal-overlay" id="playlistModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="playlists.create">Neue Playlist</span>
+      <button class="modal-close" onclick="closeModal('playlistModal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="playlists.name">Name</label>
+      <input type="text" class="form-input" id="plName" data-i18n-placeholder="playlists.namePlaceholder">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="playlists.description">Beschreibung</label>
+      <textarea class="form-input" id="plDesc" data-i18n-placeholder="playlists.descPlaceholder"></textarea>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="createPlaylist()" data-i18n="playlists.createBtn">Erstellen</button>
+  </div>
+</div>
+
+<script src="/js/i18n.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
