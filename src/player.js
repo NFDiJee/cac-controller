@@ -321,7 +321,7 @@ export class PlayerManager extends EventEmitter {
       return;
     }
     if (this.shuffleMode === 'players') {
-      this._shuffleNextFromPlayers();
+      this._shuffleNextFromPlayers(playerId);
       return;
     }
     if (this.shuffleMode === 'all') {
@@ -552,7 +552,7 @@ export class PlayerManager extends EventEmitter {
       const next = this.getShuffleNextTrack(playerId);
       if (next) this.playTrack(playerId, next);
     } else if (this.shuffleMode === 'players') {
-      this._shuffleNextFromPlayers();
+      this._shuffleNextFromPlayers(playerId);
     } else if (this.shuffleMode === 'all') {
       this._shuffleNextDisc(playerId);
     }
@@ -583,7 +583,7 @@ export class PlayerManager extends EventEmitter {
     return nextTrack;
   }
 
-  _shuffleNextFromPlayers() {
+  _shuffleNextFromPlayers(currentPlayerId) {
     const p1 = this.players.get(1);
     const p2 = this.players.get(2);
     const candidates = [];
@@ -601,6 +601,16 @@ export class PlayerManager extends EventEmitter {
 
     if (candidates.length === 0) return;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Stop the current player if switching to the other one
+    if (currentPlayerId && pick.playerId !== currentPlayerId) {
+      const current = this.players.get(currentPlayerId);
+      if (current && (current.mode === 'P04' || current.mode === 'P06')) {
+        console.log(`[Shuffle] Stopping player ${currentPlayerId} before switching to player ${pick.playerId}`);
+        this.serial.send(currentPlayerId, 'RJ');
+      }
+    }
+
     this.playTrack(pick.playerId, pick.track);
   }
 
@@ -635,7 +645,7 @@ export class PlayerManager extends EventEmitter {
       if (next) return this.playTrack(playerId, next);
     }
     if (this.shuffleMode === 'players') {
-      return this._shuffleNextFromPlayers();
+      return this._shuffleNextFromPlayers(playerId);
     }
     if (this.shuffleMode === 'all') {
       return this._shuffleNextDisc(playerId);
