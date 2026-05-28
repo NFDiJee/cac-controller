@@ -355,6 +355,8 @@ export class PlayerManager extends EventEmitter {
       active: true,
       currentPlayer: null,
       preloadedPlayer: null,
+      preloadedSlot: null,
+      _advancing: false,
     };
     this._playlistPlayCurrent();
   }
@@ -416,8 +418,12 @@ export class PlayerManager extends EventEmitter {
     if (player.disc === item.slot) {
       // CD already loaded — just play the track
       this.playTrack(targetPlayer, item.track_number);
+    } else if (this._playlist.preloadedPlayer === targetPlayer && this._playlist.preloadedSlot === item.slot) {
+      // CD is being preloaded into this player — wait for it to finish, then play
+      console.log(`[Playlist] Waiting for preloaded CD ${item.slot} on player ${targetPlayer}`);
+      this._waitForDiscAndPlay(targetPlayer, item.slot, item.track_number);
     } else {
-      // Need to load the CD
+      // Need to load the CD from scratch
       this.loadAndPlay(targetPlayer, item.slot, item.track_number);
     }
 
@@ -437,14 +443,14 @@ export class PlayerManager extends EventEmitter {
     const p1 = this.players.get(1);
     const p2 = this.players.get(2);
 
-    // If one player already has the right CD, use it
+    // If one player already has the right CD loaded, use it
     if (p1.disc === slot) return 1;
     if (p2.disc === slot) return 2;
 
-    // If one was pre-loaded with this CD, use it
-    if (this._playlist.preloadedPlayer) {
-      const preloaded = this.players.get(this._playlist.preloadedPlayer);
-      if (preloaded.disc === slot) return this._playlist.preloadedPlayer;
+    // If one was pre-loaded with this CD (even if disc state hasn't updated yet), use it
+    if (this._playlist.preloadedPlayer && this._playlist.preloadedSlot === slot) {
+      console.log(`[Playlist] Using preloaded player ${this._playlist.preloadedPlayer} for slot ${slot}`);
+      return this._playlist.preloadedPlayer;
     }
 
     // Use the player that is NOT currently playing
@@ -461,6 +467,7 @@ export class PlayerManager extends EventEmitter {
   _playlistPreloadNext() {
     const { items, currentIndex, currentPlayer } = this._playlist;
     this._playlist.preloadedPlayer = null;
+    this._playlist.preloadedSlot = null;
 
     // Scan ahead for the next item that needs a different CD
     for (let i = currentIndex + 1; i < items.length; i++) {
@@ -470,16 +477,19 @@ export class PlayerManager extends EventEmitter {
 
       // If this CD is already in one of the players, no need to preload
       if (p1.disc === nextItem.slot || p2.disc === nextItem.slot) continue;
+      // If we already preloaded this slot (still loading), no need again
+      if (this._playlist.preloadedSlot === nextItem.slot) break;
 
       // Found a future item needing a different CD — preload into idle player
       const otherId = currentPlayer === 1 ? 2 : 1;
       const otherPlayer = this.players.get(otherId);
 
-      // Only preload if the other player is idle (not playing)
+      // Preload if the other player is not actively playing
       if (otherPlayer.mode !== 'P04') {
         console.log(`[Playlist] Pre-loading CD ${nextItem.slot} into player ${otherId} for item ${i + 1}`);
         this.loadDisc(otherId, nextItem.slot);
         this._playlist.preloadedPlayer = otherId;
+        this._playlist.preloadedSlot = nextItem.slot;
       }
       break;
     }
@@ -788,6 +798,29 @@ export class PlayerManager extends EventEmitter {
 
   sendRawCommand(playerId, command) {
     this.serial.send(playerId, command);
+  }
+
+  _waitForDiscAndPlay(playerId, discNumber, trackNumber) {
+    const startTime = Date.now();
+    const checkReady = () => {
+      const player = this.players.get(playerId);
+      if (player && player.disc === discNumber && player.mode && !['P21', 'P22', 'P20'].includes(player.mode)) {
+        if (trackNumber) {
+          this.playTrack(playerId, trackNumber);
+        } else {
+          this.play(playerId);
+        }
+        return;
+      }
+      if (Date.now() - startTime < 45000) {
+        setTimeout(checkReady, 500);
+      } else {
+        // Timeout — force load
+        console.log(`[Playlist] Preload timeout for CD ${discNumber}, forcing load`);
+        this.loadAndPlay(playerId, discNumber, trackNumber);
+      }
+    };
+    setTimeout(checkReady, 500);
   }
 
   loadAndPlay(playerId, discNumber, trackNumber) {
