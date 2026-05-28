@@ -548,13 +548,18 @@ export class PlayerManager extends EventEmitter {
   // ── Shuffle ──
 
   _onShuffleTrackAdvance(playerId) {
+    // The Pioneer has already auto-advanced to track N+1 on this player.
+    // We must stop it before starting the shuffled track.
     if (this.shuffleMode === 'cd') {
+      // Same player — playTrack will override, but stop first to prevent brief overlap
+      this.serial.send(playerId, 'PA');
       const next = this.getShuffleNextTrack(playerId);
-      if (next) this.playTrack(playerId, next);
+      if (next) setTimeout(() => this.playTrack(playerId, next), 200);
     } else if (this.shuffleMode === 'players') {
       this._shuffleNextFromPlayers(playerId);
     } else if (this.shuffleMode === 'all') {
-      this._shuffleNextDisc(playerId);
+      this.serial.send(playerId, 'PA');
+      setTimeout(() => this._shuffleNextDisc(playerId), 200);
     }
   }
 
@@ -602,16 +607,20 @@ export class PlayerManager extends EventEmitter {
     if (candidates.length === 0) return;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // Stop the current player if switching to the other one
-    if (currentPlayerId && pick.playerId !== currentPlayerId) {
-      const current = this.players.get(currentPlayerId);
-      if (current && (current.mode === 'P04' || current.mode === 'P06')) {
-        console.log(`[Shuffle] Stopping player ${currentPlayerId} before switching to player ${pick.playerId}`);
-        this.serial.send(currentPlayerId, 'RJ');
+    // Stop the current player before starting on the new one
+    if (currentPlayerId) {
+      this.serial.send(currentPlayerId, 'PA');
+      setTimeout(() => this.playTrack(pick.playerId, pick.track), 200);
+    } else {
+      // Find which player is currently playing and stop it if switching
+      const playingId = p1.mode === 'P04' ? 1 : (p2.mode === 'P04' ? 2 : null);
+      if (playingId && playingId !== pick.playerId) {
+        this.serial.send(playingId, 'PA');
+        setTimeout(() => this.playTrack(pick.playerId, pick.track), 200);
+      } else {
+        this.playTrack(pick.playerId, pick.track);
       }
     }
-
-    this.playTrack(pick.playerId, pick.track);
   }
 
   _shuffleNextDisc(playerId) {
@@ -645,6 +654,7 @@ export class PlayerManager extends EventEmitter {
       if (next) return this.playTrack(playerId, next);
     }
     if (this.shuffleMode === 'players') {
+      // Pass currentPlayerId so the current player gets stopped when switching
       return this._shuffleNextFromPlayers(playerId);
     }
     if (this.shuffleMode === 'all') {
