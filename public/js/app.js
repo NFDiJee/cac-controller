@@ -634,7 +634,7 @@ async function showCDDetail(slot) {
         <div style="font-size:1.1rem;font-weight:700">${escHtml(cd.title||t('library.unknown'))}</div>
         <div style="color:var(--text-dim)">${escHtml(cd.artist||'')}</div>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">
-          Slot ${cd.slot} | ${cd.year||''} | ${cd.total_tracks} ${t('library.tracks')} | ${formatDuration(cd.total_duration_seconds)}
+          Slot ${cd.slot} | ${((cd.year||'').match(/(\d{4})/)||[])[1]||''} | ${cd.total_tracks} ${t('library.tracks')} | ${formatDuration(cd.total_duration_seconds)}
           ${cd.label ? ' | '+escHtml(cd.label) : ''}
         </div>
       </div>
