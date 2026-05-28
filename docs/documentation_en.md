@@ -306,6 +306,12 @@ Server-side playlist engine with intelligent dual-player management:
 - Stops the previous player when switching
 - Guard against double-advancement during fast mode transitions
 
+**Play Duration Tracking:**
+- When playback starts (mode changes to P04), a `play_history` entry is created and the start timestamp is recorded
+- On track change during playback, the previous entry is finalized (duration calculated) and a new one is created
+- When playback stops (mode changes from P04), the current entry is finalized
+- The actual play duration (`duration_played`) is stored in seconds in the database
+
 #### scanner.js — CD Scanner
 
 Scans slots in the changer and reads the TOC (Table of Contents):
@@ -388,13 +394,15 @@ tracks (
 
 playlists (id, name, description, created_at, updated_at)
 playlist_items (id, playlist_id, slot, track_number, position)
-play_history (id, slot, track_number, player_id, played_at)
+play_history (id, slot, track_number, player_id, played_at, duration_played)
 favorites (id, slot, track_number, added_at)
 ratings (id, slot, track_number, rating 1-5, created_at)
 settings (key TEXT PRIMARY KEY, value TEXT)
 ```
 
-**Default settings** are automatically created on first start (model, port, baud rate, polling intervals, language, MusicBrainz configuration, Hub/Network settings).
+**Default settings** are automatically created on first start (model, port, baud rate, polling intervals, language, MusicBrainz configuration, Hub/Network settings, statistics minimum play duration).
+
+The `duration_played` column in `play_history` stores the actual play duration in seconds. The `stats_min_seconds` threshold (default: 30) determines the minimum duration for a track to count in statistics.
 
 #### routes.js — REST API
 
@@ -409,6 +417,9 @@ Defines all HTTP endpoints:
 - **Scanner** (4 endpoints): Start scan, scan all, abort, progress
 - **Playlists** (10 endpoints): CRUD, add/remove items, reorder, play
 - **Favorites, Ratings, History, Search, Statistics, Settings, Play Modes**
+- **Statistics** (2 endpoints): `GET /api/stats` (top tracks with covers, top CDs, top artists, genre distribution, activity chart), `DELETE /api/stats/reset` (reset play history). Respects the configurable `stats_min_seconds` threshold.
+- **Backup** (2 endpoints): `GET /api/backup` (full database export as JSON), `POST /api/backup` (database import from JSON backup)
+- **Playlist Reorder**: `PUT /api/playlists/:id/reorder` — Drag-and-drop reordering with temporary position clearing (UNIQUE constraint safe)
 - **JSON Import**: Supports various formats, automatic field mapping, track deduplication
 
 #### websocket.js — WebSocket Manager
@@ -428,7 +439,7 @@ Manages all WebSocket connections and forwards events:
 
 The frontend is a Single Page Application (SPA) without build tools or frameworks:
 
-- **index.html**: Complete HTML with all views (Player, Library, Scanner, Playlists, Favorites, Ratings, History, Settings, Terminal)
+- **index.html**: Complete HTML with all views (Player, Library, Scanner, Playlists, Favorites, Ratings, History, Statistics, Settings, Terminal)
 - **app.js**: All application logic (state, rendering, event handlers, API calls, WebSocket connection)
 - **i18n.js**: Translation system with ~200 key-value pairs for German and English
 - **app.css**: Complete styling in dark theme with CSS Custom Properties

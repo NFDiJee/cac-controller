@@ -58,7 +58,7 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 - **Continuous Play** - Automatic crossover between both players when a disc ends
 - **Gapless Play** - Pre-cues the other player for seamless transitions between discs
 - **Shuffle** - Three modes: current CD, both players, or the entire changer (random disc loading)
-- **Playlists** - Server-side playlist engine with intelligent dual-player management and CD pre-loading
+- **Playlists** - Server-side playlist engine with intelligent dual-player management, CD pre-loading, and drag-and-drop reordering
 
 ### CD Library
 - **SQLite Database** - Persistent storage for all CD metadata, tracks, playlists, favorites, ratings, and play history
@@ -78,7 +78,9 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 ### Additional Features
 - **Favorites** - Mark individual tracks or entire CDs as favorites
 - **Ratings** - 1-5 star rating system for tracks and CDs with filterable views
-- **Play History** - Automatic tracking of all played tracks with timestamps
+- **Play History** - Automatic tracking of all played tracks with timestamps and actual play duration
+- **Play Statistics** - Top tracks, top CDs, top artists, genre distribution, and activity charts with configurable minimum play duration threshold
+- **Backup / Restore** - Full database export and import as JSON (CDs, tracks, playlists, favorites, ratings, play history, settings)
 - **Serial Terminal** - Direct serial command interface for debugging and advanced control
 - **Bilingual UI** - German and English, auto-detected from system locale or manually selectable
 - **Mobile PWA** - Responsive design, installable on home screen, works in fullscreen
@@ -138,6 +140,7 @@ All settings are configurable via the web UI under **More > Settings**:
 | Max Discs | `300` | Maximum slot count (300 or 500) |
 | Web Port | `3000` | HTTP server port |
 | Language | `auto` | Auto-detect, German, or English |
+| Stats Min Seconds | `30` | Minimum play duration (seconds) for a track to count in statistics |
 
 ### Hub / Network Settings
 
@@ -211,6 +214,19 @@ The server exposes a full REST API for programmatic control:
 | `DELETE` | `/api/playlists/:id` | Delete playlist |
 | `POST` | `/api/playlists/:id/play` | Start playlist playback |
 | `POST` | `/api/playlists/stop` | Stop playlist |
+| `PUT` | `/api/playlists/:id/reorder` | Reorder items `{ itemIds: [...] }` |
+
+### Statistics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/stats` | Play statistics (top tracks, CDs, artists, genres, activity) |
+| `DELETE` | `/api/stats/reset` | Reset all play history |
+
+### Backup
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/backup` | Export full database as JSON |
+| `POST` | `/api/backup` | Import database from JSON backup |
 
 ### Node API (Hub Communication)
 
@@ -298,7 +314,7 @@ The SQLite database contains the following tables:
 - **cds** - CD metadata (slot, title, artist, year, genre, cover, MusicBrainz ID, barcode, label, country)
 - **tracks** - Track metadata (title, artist, duration, ISRC)
 - **playlists** / **playlist_items** - User-created playlists
-- **play_history** - Automatic play tracking
+- **play_history** - Automatic play tracking with duration measurement
 - **favorites** - Favorited tracks and CDs
 - **ratings** - 1-5 star ratings
 - **settings** - Application configuration (key-value store)

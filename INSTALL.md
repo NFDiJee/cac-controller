@@ -153,6 +153,7 @@ Im Browser unter **Mehr > Einstellungen**:
 3. **Modell** - Dein Pioneer-Modell auswaehlen
 4. **Max. Discs** - 300 (V3000/V3200) oder 500 (V5000) oder 18 (V180M)
 5. **Sprache** - Automatisch, Deutsch oder English
+6. **Statistik Min. Sekunden** - Mindestspieldauer (Standard: 30s), damit ein Track in der Statistik gezaehlt wird
 
 Nach Aenderungen: Service neu starten:
 ```bash
@@ -174,7 +175,14 @@ Unter **Scanner > JSON Import** eine vorhandene `cds.json` hochladen.
 
 **Achtung:** Ein vollstaendiger Scan aller 300 Slots kann mehrere Stunden dauern (30-60 Sekunden pro CD fuer Laden/Lesen/Zuruecklegen).
 
-## Schritt 12: PWA auf dem Smartphone
+## Schritt 12: Backup erstellen
+
+Unter **Einstellungen > Backup** kann die gesamte Datenbank als JSON exportiert und spaeter wieder importiert werden:
+
+- **Export** — Laedt eine JSON-Datei mit allen CDs, Tracks, Playlists, Favoriten, Bewertungen, Wiedergabeverlauf und Einstellungen herunter
+- **Import** — Stellt eine zuvor exportierte Backup-Datei wieder her (ueberschreibt alle vorhandenen Daten)
+
+## Schritt 13: PWA auf dem Smartphone
 
 Auf dem Smartphone die URL `http://<PI_IP>:3000` oeffnen:
 

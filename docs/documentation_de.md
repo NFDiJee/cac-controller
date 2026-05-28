@@ -306,6 +306,12 @@ Server-seitige Playlist-Engine mit intelligenter Dual-Player-Verwaltung:
 - Stoppt den vorherigen Player beim Wechsel
 - Guard gegen doppeltes Weiterschalten bei schnellen Modus-Transitionen
 
+**Spieldauer-Tracking:**
+- Bei Wiedergabestart (Modus wechselt zu P04) wird ein `play_history`-Eintrag erstellt und der Startzeitpunkt gespeichert
+- Bei Track-Wechsel waehrend der Wiedergabe wird der vorherige Eintrag finalisiert (Dauer berechnet) und ein neuer erstellt
+- Bei Wiedergabestop (Modus wechselt von P04) wird der aktuelle Eintrag finalisiert
+- Die tatsaechliche Spieldauer (`duration_played`) wird in Sekunden in der Datenbank gespeichert
+
 #### scanner.js — CD-Scanner
 
 Scannt Slots im Wechsler und liest die TOC (Table of Contents):
@@ -388,13 +394,15 @@ tracks (
 
 playlists (id, name, description, created_at, updated_at)
 playlist_items (id, playlist_id, slot, track_number, position)
-play_history (id, slot, track_number, player_id, played_at)
+play_history (id, slot, track_number, player_id, played_at, duration_played)
 favorites (id, slot, track_number, added_at)
 ratings (id, slot, track_number, rating 1-5, created_at)
 settings (key TEXT PRIMARY KEY, value TEXT)
 ```
 
-**Standard-Einstellungen** werden beim ersten Start automatisch angelegt (Modell, Port, Baudrate, Polling-Intervalle, Sprache, MusicBrainz-Konfiguration, Hub/Netzwerk-Einstellungen).
+**Standard-Einstellungen** werden beim ersten Start automatisch angelegt (Modell, Port, Baudrate, Polling-Intervalle, Sprache, MusicBrainz-Konfiguration, Hub/Netzwerk-Einstellungen, Statistik-Mindestspieldauer).
+
+Die Spalte `duration_played` in `play_history` speichert die tatsaechliche Spieldauer in Sekunden. Der Schwellenwert `stats_min_seconds` (Standard: 30) bestimmt, ab welcher Dauer ein Track in der Statistik gezaehlt wird.
 
 #### routes.js — REST-API
 
@@ -409,6 +417,9 @@ Definiert alle HTTP-Endpunkte:
 - **Scanner** (4 Endpunkte): Scan starten, Scan-All, Abbrechen, Fortschritt
 - **Playlists** (10 Endpunkte): CRUD, Items hinzufuegen/entfernen, Reihenfolge, Abspielen
 - **Favoriten, Bewertungen, History, Suche, Statistiken, Einstellungen, Play-Modi**
+- **Statistiken** (2 Endpunkte): `GET /api/stats` (Top-Tracks mit Covers, Top-CDs, Top-Kuenstler, Genre-Verteilung, Aktivitaets-Diagramm), `DELETE /api/stats/reset` (Verlauf zuruecksetzen). Beruecksichtigt den konfigurierbaren Schwellenwert `stats_min_seconds`.
+- **Backup** (2 Endpunkte): `GET /api/backup` (vollstaendiger Datenbank-Export als JSON), `POST /api/backup` (Datenbank-Import aus JSON-Backup)
+- **Playlist-Sortierung**: `PUT /api/playlists/:id/reorder` — Drag-and-Drop-Neuordnung mit temporaerer Positions-Bereinigung (UNIQUE-Constraint-sicher)
 - **JSON-Import**: Unterstuetzt verschiedene Formate, automatische Feld-Zuordnung, Track-Deduplizierung
 
 #### websocket.js — WebSocket-Manager
@@ -428,7 +439,7 @@ Verwaltet alle WebSocket-Verbindungen und leitet Ereignisse weiter:
 
 Das Frontend ist eine Single Page Application (SPA) ohne Build-Tools oder Frameworks:
 
-- **index.html**: Komplettes HTML mit allen Ansichten (Player, Library, Scanner, Playlists, Favoriten, Bewertungen, History, Einstellungen, Terminal)
+- **index.html**: Komplettes HTML mit allen Ansichten (Player, Library, Scanner, Playlists, Favoriten, Bewertungen, History, Statistiken, Einstellungen, Terminal)
 - **app.js**: Gesamte Anwendungslogik (Zustand, Rendering, Event-Handler, API-Aufrufe, WebSocket-Verbindung)
 - **i18n.js**: Uebersetzungssystem mit ca. 200 Schluessel-Wert-Paaren fuer Deutsch und Englisch
 - **app.css**: Vollstaendiges Styling im Dark Theme mit CSS Custom Properties

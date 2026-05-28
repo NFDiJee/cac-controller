@@ -36,7 +36,9 @@ The CAC Controller is a Node.js web application that runs on a Raspberry Pi and 
 - **CD Library** — Catalog all CDs with covers, artist info, and track lists
 - **MusicBrainz Integration** — Automatic metadata lookup
 - **Scanner** — Automatically read and catalog CDs
-- **Playlists** — Create custom playback lists
+- **Playlists** — Create custom playback lists with drag-and-drop reordering
+- **Statistics** — Top tracks, top CDs, top artists, genre distribution, and activity charts
+- **Backup / Restore** — Full database export and import as JSON
 - **PWA** — Installable as an app on smartphones
 
 ### Supported Pioneer Models
@@ -479,7 +481,13 @@ In the browser under **More > Settings** (gear icon), the following settings can
 | Port | `3000` | HTTP server port |
 | Language | `auto` | Automatic, German, or English |
 
-### 10.4 Apply Changes
+### 10.4 Statistics
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Stats Min Seconds | `30` | Minimum play duration in seconds for a track to count in statistics |
+
+### 10.5 Apply Changes
 
 After changes to port or serial settings, restart the service:
 
