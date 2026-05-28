@@ -2072,6 +2072,7 @@ function renderStatsToplist() {
     html += items.map((tr, i) => `
       <div class="list-item" onclick="loadAndPlayTrack(${tr.slot},${tr.track_number})" style="cursor:pointer">
         <div class="top-rank">${i + 1}</div>
+        ${tr.cover_url ? `<img class="top-cover" src="${escHtml(tr.cover_url)}" alt="">` : `<div class="top-cover-ph">${tr.slot}</div>`}
         <div class="list-meta">
           <div class="list-primary">${escHtml(tr.track_title || 'Track ' + tr.track_number)}</div>
           <div class="list-secondary">${escHtml(tr.cd_artist || '')} · ${escHtml(tr.cd_title || 'CD ' + tr.slot)} · Track ${tr.track_number}</div>

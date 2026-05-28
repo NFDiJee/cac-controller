@@ -429,7 +429,7 @@ export function getTopTracks(limit = 10) {
   return db.prepare(`
     SELECT ph.slot, ph.track_number, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
       t.title as track_title, t.duration_seconds, c.title as cd_title, c.artist as cd_artist,
-      COALESCE(SUM(ph.duration_played), 0) as total_play_time
+      c.cover_url, COALESCE(SUM(ph.duration_played), 0) as total_play_time
     FROM play_history ph
     LEFT JOIN cds c ON c.slot = ph.slot
     LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
