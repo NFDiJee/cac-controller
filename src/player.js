@@ -162,10 +162,16 @@ export class PlayerManager extends EventEmitter {
     if (!player || !player.disc || !player.track) return;
     // Finalize any previous open tracking first
     this._finalizePlayTracking(playerId);
-    const historyId = db.addPlayHistory(player.disc, player.track, playerId);
+    // Ensure we have a session ID for this disc
+    if (!player._sessionId || player._sessionDisc !== player.disc) {
+      player._sessionId = `${playerId}-${player.disc}-${Date.now()}`;
+      player._sessionDisc = player.disc;
+      console.log(`[Stats] New session: ${player._sessionId}`);
+    }
+    const historyId = db.addPlayHistory(player.disc, player.track, playerId, player._sessionId);
     player._playHistoryId = historyId;
     player._playStartedAt = Date.now();
-    console.log(`[Stats] Start tracking: player ${playerId}, slot ${player.disc}, track ${player.track}, id ${historyId}`);
+    console.log(`[Stats] Start tracking: player ${playerId}, slot ${player.disc}, track ${player.track}, id ${historyId}, session ${player._sessionId}`);
   }
 
   _finalizePlayTracking(playerId) {
@@ -221,6 +227,9 @@ export class PlayerManager extends EventEmitter {
         if (player.disc !== parsed.disc) {
           player.disc = parsed.disc;
           changed = true;
+          // New disc = new session
+          player._sessionId = null;
+          player._sessionDisc = null;
           // Fetch TOC immediately when disc changes
           if (parsed.disc) {
             setTimeout(() => this.serial.send(playerId, '?Q'), 1000);

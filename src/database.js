@@ -72,7 +72,8 @@ function createTables() {
       track_number INTEGER,
       player_id INTEGER DEFAULT 1,
       played_at TEXT DEFAULT (datetime('now')),
-      duration_played INTEGER DEFAULT 0
+      duration_played INTEGER DEFAULT 0,
+      session_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS favorites (
@@ -109,6 +110,10 @@ function createTables() {
   const cols = db.prepare("PRAGMA table_info(play_history)").all();
   if (!cols.find(c => c.name === 'duration_played')) {
     db.prepare('ALTER TABLE play_history ADD COLUMN duration_played INTEGER DEFAULT 0').run();
+  }
+  // Migration: add session_id column if missing
+  if (!cols.find(c => c.name === 'session_id')) {
+    db.prepare('ALTER TABLE play_history ADD COLUMN session_id TEXT').run();
   }
 
   // Default settings
@@ -315,9 +320,9 @@ export function reorderPlaylist(playlistId, itemIds) {
 }
 
 // Play History
-export function addPlayHistory(slot, trackNumber, playerId) {
-  const result = db.prepare('INSERT INTO play_history (slot, track_number, player_id) VALUES (?, ?, ?)')
-    .run(slot, trackNumber || 0, playerId || 1);
+export function addPlayHistory(slot, trackNumber, playerId, sessionId) {
+  const result = db.prepare('INSERT INTO play_history (slot, track_number, player_id, session_id) VALUES (?, ?, ?, ?)')
+    .run(slot, trackNumber || 0, playerId || 1, sessionId || null);
   return Number(result.lastInsertRowid);
 }
 
@@ -412,9 +417,12 @@ export function getStats() {
 export function getTopCDs(limit = 10) {
   const minSec = getStatsMinSeconds();
   return db.prepare(`
-    SELECT ph.slot, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
+    SELECT ph.slot,
+      COUNT(DISTINCT CASE WHEN ph.session_id IS NOT NULL THEN ph.session_id ELSE ph.id END) as play_count,
+      MAX(ph.played_at) as last_played,
       c.title as cd_title, c.artist as cd_artist, c.cover_url,
-      COALESCE(SUM(ph.duration_played), 0) as total_play_time
+      COALESCE(SUM(ph.duration_played), 0) as total_play_time,
+      COUNT(*) as track_plays
     FROM play_history ph
     LEFT JOIN cds c ON c.slot = ph.slot
     WHERE ph.duration_played >= ?
@@ -602,7 +610,7 @@ export function exportBackup() {
     playlists: getAllPlaylists().map(pl => getPlaylist(pl.id)),
     favorites: getFavorites(),
     ratings: db.prepare('SELECT slot, track_number, rating, created_at FROM ratings ORDER BY slot, track_number').all(),
-    playHistory: db.prepare('SELECT slot, track_number, player_id, played_at, duration_played FROM play_history ORDER BY played_at').all(),
+    playHistory: db.prepare('SELECT slot, track_number, player_id, played_at, duration_played, session_id FROM play_history ORDER BY played_at').all(),
   };
 }
 
@@ -657,7 +665,7 @@ export function importBackup(data) {
     // Play History
     if (data.playHistory) {
       for (const h of data.playHistory) {
-        db.prepare('INSERT INTO play_history (slot, track_number, player_id, played_at, duration_played) VALUES (?, ?, ?, ?, ?)').run(h.slot, h.track_number, h.player_id || 1, h.played_at, h.duration_played || 0);
+        db.prepare('INSERT INTO play_history (slot, track_number, player_id, played_at, duration_played, session_id) VALUES (?, ?, ?, ?, ?, ?)').run(h.slot, h.track_number, h.player_id || 1, h.played_at, h.duration_played || 0, h.session_id || null);
       }
     }
   });

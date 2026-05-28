@@ -2064,7 +2064,7 @@ function renderStatsToplist() {
           <div class="list-primary">${escHtml(c.cd_title || 'CD ' + c.slot)}</div>
           <div class="list-secondary">${escHtml(c.cd_artist || '')} · Slot ${c.slot}</div>
         </div>
-        <div class="top-count"><div class="top-count-val">${c.play_count}x</div><div class="top-count-sub">${formatDate(c.last_played)}</div></div>
+        <div class="top-count"><div class="top-count-val">${c.play_count}x</div><div class="top-count-sub">${c.track_plays ? c.track_plays + ' Tracks' : ''}</div><div class="top-count-sub">${formatDate(c.last_played)}</div></div>
       </div>`).join('');
   } else {
     const items = statsData.topTracks.slice(0, topListLimit);
