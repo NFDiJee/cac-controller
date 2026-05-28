@@ -470,7 +470,17 @@ export function createRoutes(playerManager, scanner, serial) {
   // ── Stats ──
 
   router.get('/api/stats', (req, res) => {
-    res.json(db.getStats());
+    const topLimit = parseInt(req.query.top) || 10;
+    res.json({
+      inventory: db.getInventoryStats(),
+      topCDs: db.getTopCDs(topLimit),
+      topTracks: db.getTopTracks(topLimit),
+      daily: db.getPlayActivity('day'),
+      weekly: db.getPlayActivity('week'),
+      monthly: db.getPlayActivity('month'),
+      yearly: db.getPlayActivity('year'),
+      totalPlayTimeSec: db.getEstimatedPlayTime(),
+    });
   });
 
   // ── Play Modes ──

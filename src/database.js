@@ -384,6 +384,136 @@ export function getStats() {
   return { totalCDs, totalTracks, totalPlays, totalFavorites, totalPlaylists, recentPlays };
 }
 
+// Play Statistics
+
+export function getTopCDs(limit = 10) {
+  return db.prepare(`
+    SELECT ph.slot, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
+      c.title as cd_title, c.artist as cd_artist, c.cover_url
+    FROM play_history ph
+    LEFT JOIN cds c ON c.slot = ph.slot
+    GROUP BY ph.slot
+    ORDER BY play_count DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+export function getTopTracks(limit = 10) {
+  return db.prepare(`
+    SELECT ph.slot, ph.track_number, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
+      t.title as track_title, t.duration_seconds, c.title as cd_title, c.artist as cd_artist
+    FROM play_history ph
+    LEFT JOIN cds c ON c.slot = ph.slot
+    LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+    GROUP BY ph.slot, ph.track_number
+    ORDER BY play_count DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+export function getPlayActivity(period) {
+  switch (period) {
+    case 'day':
+      return db.prepare(`
+        SELECT date(played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT slot) as unique_cds,
+          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
+        FROM play_history
+        WHERE played_at >= date('now', '-30 days')
+        GROUP BY date(played_at)
+        ORDER BY period
+      `).all();
+
+    case 'week':
+      return db.prepare(`
+        SELECT strftime('%Y-W%W', played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT slot) as unique_cds,
+          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
+        FROM play_history
+        WHERE played_at >= date('now', '-84 days')
+        GROUP BY strftime('%Y-W%W', played_at)
+        ORDER BY period
+      `).all();
+
+    case 'month':
+      return db.prepare(`
+        SELECT strftime('%Y-%m', played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT slot) as unique_cds,
+          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
+        FROM play_history
+        WHERE played_at >= date('now', '-12 months')
+        GROUP BY strftime('%Y-%m', played_at)
+        ORDER BY period
+      `).all();
+
+    case 'year':
+      return db.prepare(`
+        SELECT strftime('%Y', played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT slot) as unique_cds,
+          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
+        FROM play_history
+        GROUP BY strftime('%Y', played_at)
+        ORDER BY period
+      `).all();
+
+    default:
+      return [];
+  }
+}
+
+export function getInventoryStats() {
+  const totalCDs = db.prepare('SELECT COUNT(*) as count FROM cds').get().count;
+  const totalTracks = db.prepare('SELECT COUNT(*) as count FROM tracks').get().count;
+  const totalDurationSeconds = db.prepare('SELECT COALESCE(SUM(total_duration_seconds), 0) as total FROM cds').get().total;
+  const totalPlaylists = db.prepare('SELECT COUNT(*) as count FROM playlists').get().count;
+  const totalPlaylistItems = db.prepare('SELECT COUNT(*) as count FROM playlist_items').get().count;
+  const totalFavorites = db.prepare('SELECT COUNT(*) as count FROM favorites').get().count;
+  const totalRatings = db.prepare('SELECT COUNT(*) as count FROM ratings').get().count;
+  const avgRatingRow = db.prepare('SELECT ROUND(AVG(rating), 1) as avg FROM ratings').get();
+  const avgRating = avgRatingRow.avg || 0;
+  const genreDistribution = db.prepare(`
+    SELECT genre, COUNT(*) as count FROM cds
+    WHERE genre != ''
+    GROUP BY genre
+    ORDER BY count DESC
+  `).all();
+
+  return {
+    totalCDs,
+    totalTracks,
+    totalDurationSeconds,
+    totalPlaylists,
+    totalPlaylistItems,
+    totalFavorites,
+    totalRatings,
+    avgRating,
+    genreDistribution,
+  };
+}
+
+export function getEstimatedPlayTime() {
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(t.duration_seconds), 0) as total_seconds
+    FROM play_history ph
+    LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+  `).get();
+  return row.total_seconds;
+}
+
+export function getPlayStats(topLimit = 10) {
+  return {
+    inventory: getInventoryStats(),
+    topCDs: getTopCDs(topLimit),
+    topTracks: getTopTracks(topLimit),
+    dailyActivity: getPlayActivity('day'),
+    weeklyActivity: getPlayActivity('week'),
+    monthlyActivity: getPlayActivity('month'),
+    yearlyActivity: getPlayActivity('year'),
+    totalPlays: db.prepare('SELECT COUNT(*) as count FROM play_history').get().count,
+    totalPlayTimeSec: getEstimatedPlayTime(),
+  };
+}
+
 // Ratings
 export function setRating(slot, trackNumber, rating) {
   if (rating < 1 || rating > 5) return;
