@@ -398,8 +398,13 @@ export function createRoutes(playerManager, scanner, serial) {
   });
 
   router.put('/api/playlists/:id/reorder', (req, res) => {
-    const playlist = db.reorderPlaylist(parseInt(req.params.id), req.body.itemIds);
-    res.json(playlist);
+    try {
+      const playlist = db.reorderPlaylist(parseInt(req.params.id), req.body.itemIds);
+      res.json(playlist);
+    } catch (err) {
+      console.error('[API] Reorder error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // ── Favorites ──

@@ -304,8 +304,10 @@ export function removeFromPlaylist(itemId) {
 }
 
 export function reorderPlaylist(playlistId, itemIds) {
+  const clearPos = db.prepare('UPDATE playlist_items SET position = -(id + 100000) WHERE playlist_id = ?');
   const update = db.prepare('UPDATE playlist_items SET position = ? WHERE id = ? AND playlist_id = ?');
   const transaction = db.transaction(() => {
+    clearPos.run(playlistId);
     itemIds.forEach((id, index) => update.run(index + 1, id, playlistId));
   });
   transaction();
