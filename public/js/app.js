@@ -768,6 +768,7 @@ function showEditCD(slot) {
     <div class="form-group"><label class="form-label">${t('edit.artist')}</label><input type="text" class="form-input" id="editArtist" value="${escAttr(cd.artist||'')}"></div>
     <div class="form-group"><label class="form-label">${t('edit.year')}</label><input type="text" class="form-input" id="editYear" value="${escAttr(cd.year||'')}"></div>
     <div class="form-group"><label class="form-label">${t('edit.genre')}</label><input type="text" class="form-input" id="editGenre" value="${escAttr(cd.genre||'')}"></div>
+    <div class="form-group"><label class="form-label">${t('edit.label')}</label><input type="text" class="form-input" id="editLabel" value="${escAttr(cd.label||'')}"></div>
     <div class="form-group"><label class="form-label">${t('edit.cover')}</label><input type="text" class="form-input" id="editCover" value="${escAttr(cd.cover_url||'')}"></div>
     <div class="form-group">
       <label class="form-label">${t('cover.upload')}</label>
@@ -812,6 +813,7 @@ async function saveCD(slot) {
       artist: document.getElementById('editArtist').value,
       year: document.getElementById('editYear').value,
       genre: document.getElementById('editGenre').value,
+      label: document.getElementById('editLabel').value,
       cover_url: document.getElementById('editCover').value,
       notes: document.getElementById('editNotes').value,
     });
