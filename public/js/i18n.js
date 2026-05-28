@@ -306,6 +306,9 @@ const translations = {
     'stats.avgRating': 'Ø Bewertung',
     'stats.genreDistribution': 'Genre-Verteilung',
     'stats.unknown': 'Unbekannt',
+    'stats.reset': 'Statistik zuruecksetzen',
+    'stats.resetConfirm': 'Spielstatistik wirklich zuruecksetzen? Alle Play-Daten werden geloescht.',
+    'stats.resetDone': 'Statistik zurueckgesetzt',
 
     // Settings
     'settings.serialPort': 'Serieller Port',
@@ -654,6 +657,10 @@ const translations = {
     'stats.avgRating': 'Avg. Rating',
     'stats.genreDistribution': 'Genre Distribution',
     'stats.unknown': 'Unknown',
+    'stats.reset': 'Reset Statistics',
+    'stats.resetConfirm': 'Really reset play statistics? All play data will be deleted.',
+    'stats.resetDone': 'Statistics reset',
+    'stats.playTimeSec': 'Play Time',
 
     // Settings
     'settings.serialPort': 'Serial Port',

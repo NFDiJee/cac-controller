@@ -1896,7 +1896,20 @@ function renderStatsOverview() {
       </div>`).join('');
     html += '</div>';
   }
+
+  html += `<div style="margin-top:24px;text-align:right">
+    <button class="btn btn-danger btn-sm" onclick="resetPlayStats()">${t('stats.reset')}</button>
+  </div>`;
   return html;
+}
+
+async function resetPlayStats() {
+  if (!confirm(t('stats.resetConfirm'))) return;
+  try {
+    await api('/stats/reset', 'DELETE');
+    toast(t('stats.resetDone'));
+    await loadStats();
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 function renderStatsToplist() {
@@ -1975,9 +1988,9 @@ function renderStatsActivity() {
   html += `</div></div>`;
 
   html += `<div class="stats-table"><table>
-    <thead><tr><th>${t('stats.period')}</th><th>${t('stats.plays')}</th><th>${t('stats.uniqueCDs')}</th><th>${t('stats.uniqueTracks')}</th></tr></thead><tbody>`;
+    <thead><tr><th>${t('stats.period')}</th><th>${t('stats.plays')}</th><th>${t('stats.playTime')}</th><th>${t('stats.uniqueCDs')}</th><th>${t('stats.uniqueTracks')}</th></tr></thead><tbody>`;
   for (const d of [...data].reverse()) {
-    html += `<tr><td>${d.period}</td><td>${d.play_count}</td><td>${d.unique_cds}</td><td>${d.unique_tracks}</td></tr>`;
+    html += `<tr><td>${d.period}</td><td>${d.play_count}</td><td>${formatDuration(d.play_time_sec)}</td><td>${d.unique_cds}</td><td>${d.unique_tracks}</td></tr>`;
   }
   html += `</tbody></table></div>`;
   return html;
@@ -2082,10 +2095,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
 // ── Utilities ──
 function formatDuration(seconds) {
-  if (!seconds) return '--:--';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  if (!seconds) return '00:00:00';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function formatDate(dateStr) {

@@ -483,6 +483,11 @@ export function createRoutes(playerManager, scanner, serial) {
     });
   });
 
+  router.delete('/api/stats/reset', (req, res) => {
+    db.resetPlayStats();
+    res.json({ ok: true });
+  });
+
   // ── Play Modes ──
 
   router.get('/api/playmodes', (req, res) => {

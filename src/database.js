@@ -415,44 +415,52 @@ export function getPlayActivity(period) {
   switch (period) {
     case 'day':
       return db.prepare(`
-        SELECT date(played_at) as period, COUNT(*) as play_count,
-          COUNT(DISTINCT slot) as unique_cds,
-          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
-        FROM play_history
-        WHERE played_at >= date('now', '-30 days')
-        GROUP BY date(played_at)
+        SELECT date(ph.played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT ph.slot) as unique_cds,
+          COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
+          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+        FROM play_history ph
+        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+        WHERE ph.played_at >= date('now', '-30 days')
+        GROUP BY date(ph.played_at)
         ORDER BY period
       `).all();
 
     case 'week':
       return db.prepare(`
-        SELECT strftime('%Y-W%W', played_at) as period, COUNT(*) as play_count,
-          COUNT(DISTINCT slot) as unique_cds,
-          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
-        FROM play_history
-        WHERE played_at >= date('now', '-84 days')
-        GROUP BY strftime('%Y-W%W', played_at)
+        SELECT strftime('%Y-W%W', ph.played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT ph.slot) as unique_cds,
+          COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
+          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+        FROM play_history ph
+        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+        WHERE ph.played_at >= date('now', '-84 days')
+        GROUP BY strftime('%Y-W%W', ph.played_at)
         ORDER BY period
       `).all();
 
     case 'month':
       return db.prepare(`
-        SELECT strftime('%Y-%m', played_at) as period, COUNT(*) as play_count,
-          COUNT(DISTINCT slot) as unique_cds,
-          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
-        FROM play_history
-        WHERE played_at >= date('now', '-12 months')
-        GROUP BY strftime('%Y-%m', played_at)
+        SELECT strftime('%Y-%m', ph.played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT ph.slot) as unique_cds,
+          COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
+          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+        FROM play_history ph
+        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+        WHERE ph.played_at >= date('now', '-12 months')
+        GROUP BY strftime('%Y-%m', ph.played_at)
         ORDER BY period
       `).all();
 
     case 'year':
       return db.prepare(`
-        SELECT strftime('%Y', played_at) as period, COUNT(*) as play_count,
-          COUNT(DISTINCT slot) as unique_cds,
-          COUNT(DISTINCT slot || '-' || track_number) as unique_tracks
-        FROM play_history
-        GROUP BY strftime('%Y', played_at)
+        SELECT strftime('%Y', ph.played_at) as period, COUNT(*) as play_count,
+          COUNT(DISTINCT ph.slot) as unique_cds,
+          COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
+          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+        FROM play_history ph
+        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+        GROUP BY strftime('%Y', ph.played_at)
         ORDER BY period
       `).all();
 
@@ -489,6 +497,10 @@ export function getInventoryStats() {
     avgRating,
     genreDistribution,
   };
+}
+
+export function resetPlayStats() {
+  db.prepare('DELETE FROM play_history').run();
 }
 
 export function getEstimatedPlayTime() {
