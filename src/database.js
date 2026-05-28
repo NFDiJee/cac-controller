@@ -71,7 +71,8 @@ function createTables() {
       slot INTEGER,
       track_number INTEGER,
       player_id INTEGER DEFAULT 1,
-      played_at TEXT DEFAULT (datetime('now'))
+      played_at TEXT DEFAULT (datetime('now')),
+      duration_played INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS favorites (
@@ -104,6 +105,12 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_ratings_rating ON ratings(rating DESC);
   `);
 
+  // Migration: add duration_played column if missing
+  const cols = db.prepare("PRAGMA table_info(play_history)").all();
+  if (!cols.find(c => c.name === 'duration_played')) {
+    db.prepare('ALTER TABLE play_history ADD COLUMN duration_played INTEGER DEFAULT 0').run();
+  }
+
   // Default settings
   const defaults = {
     model: 'CAC-V3000',
@@ -125,6 +132,7 @@ function createTables() {
     node_name: '',
     node_room: '',
     node_api_key: '',
+    stats_min_seconds: '30',
   };
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
@@ -137,6 +145,10 @@ function createTables() {
 export function getSetting(key) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row ? row.value : null;
+}
+
+export function getStatsMinSeconds() {
+  return parseInt(getSetting('stats_min_seconds')) || 30;
 }
 
 export function setSetting(key, value) {
@@ -302,8 +314,15 @@ export function reorderPlaylist(playlistId, itemIds) {
 
 // Play History
 export function addPlayHistory(slot, trackNumber, playerId) {
-  db.prepare('INSERT INTO play_history (slot, track_number, player_id) VALUES (?, ?, ?)')
+  const result = db.prepare('INSERT INTO play_history (slot, track_number, player_id) VALUES (?, ?, ?)')
     .run(slot, trackNumber || 0, playerId || 1);
+  return Number(result.lastInsertRowid);
+}
+
+export function finalizePlayHistory(id, durationPlayed) {
+  if (!id || !durationPlayed || durationPlayed < 0) return;
+  db.prepare('UPDATE play_history SET duration_played = ? WHERE id = ?')
+    .run(Math.round(durationPlayed), id);
 }
 
 export function getPlayHistory(limit = 50) {
@@ -374,95 +393,101 @@ export function searchLibrary(query) {
 export function getStats() {
   const totalCDs = db.prepare('SELECT COUNT(*) as count FROM cds').get().count;
   const totalTracks = db.prepare('SELECT COUNT(*) as count FROM tracks').get().count;
-  const totalPlays = db.prepare('SELECT COUNT(*) as count FROM play_history').get().count;
+  const minSec = getStatsMinSeconds();
+  const totalPlays = db.prepare('SELECT COUNT(*) as count FROM play_history WHERE duration_played >= ?').get(minSec).count;
   const totalFavorites = db.prepare('SELECT COUNT(*) as count FROM favorites').get().count;
   const totalPlaylists = db.prepare('SELECT COUNT(*) as count FROM playlists').get().count;
   const recentPlays = db.prepare(`
     SELECT slot, COUNT(*) as plays FROM play_history
+    WHERE duration_played >= ?
     GROUP BY slot ORDER BY plays DESC LIMIT 10
-  `).all();
+  `).all(minSec);
   return { totalCDs, totalTracks, totalPlays, totalFavorites, totalPlaylists, recentPlays };
 }
 
 // Play Statistics
 
 export function getTopCDs(limit = 10) {
+  const minSec = getStatsMinSeconds();
   return db.prepare(`
     SELECT ph.slot, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
-      c.title as cd_title, c.artist as cd_artist, c.cover_url
+      c.title as cd_title, c.artist as cd_artist, c.cover_url,
+      COALESCE(SUM(ph.duration_played), 0) as total_play_time
     FROM play_history ph
     LEFT JOIN cds c ON c.slot = ph.slot
+    WHERE ph.duration_played >= ?
     GROUP BY ph.slot
     ORDER BY play_count DESC
     LIMIT ?
-  `).all(limit);
+  `).all(minSec, limit);
 }
 
 export function getTopTracks(limit = 10) {
+  const minSec = getStatsMinSeconds();
   return db.prepare(`
     SELECT ph.slot, ph.track_number, COUNT(*) as play_count, MAX(ph.played_at) as last_played,
-      t.title as track_title, t.duration_seconds, c.title as cd_title, c.artist as cd_artist
+      t.title as track_title, t.duration_seconds, c.title as cd_title, c.artist as cd_artist,
+      COALESCE(SUM(ph.duration_played), 0) as total_play_time
     FROM play_history ph
     LEFT JOIN cds c ON c.slot = ph.slot
     LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+    WHERE ph.duration_played >= ?
     GROUP BY ph.slot, ph.track_number
     ORDER BY play_count DESC
     LIMIT ?
-  `).all(limit);
+  `).all(minSec, limit);
 }
 
 export function getPlayActivity(period) {
+  const minSec = getStatsMinSeconds();
   switch (period) {
     case 'day':
       return db.prepare(`
         SELECT date(ph.played_at) as period, COUNT(*) as play_count,
           COUNT(DISTINCT ph.slot) as unique_cds,
           COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
-          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+          COALESCE(SUM(ph.duration_played), 0) as play_time_sec
         FROM play_history ph
-        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
-        WHERE ph.played_at >= date('now', '-30 days')
+        WHERE ph.duration_played >= ? AND ph.played_at >= date('now', '-30 days')
         GROUP BY date(ph.played_at)
         ORDER BY period
-      `).all();
+      `).all(minSec);
 
     case 'week':
       return db.prepare(`
-        SELECT strftime('%Y-W%W', ph.played_at) as period, COUNT(*) as play_count,
+        SELECT strftime('%G-W%V', ph.played_at) as period, COUNT(*) as play_count,
           COUNT(DISTINCT ph.slot) as unique_cds,
           COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
-          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+          COALESCE(SUM(ph.duration_played), 0) as play_time_sec
         FROM play_history ph
-        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
-        WHERE ph.played_at >= date('now', '-84 days')
-        GROUP BY strftime('%Y-W%W', ph.played_at)
+        WHERE ph.duration_played >= ? AND ph.played_at >= date('now', '-84 days')
+        GROUP BY strftime('%G-W%V', ph.played_at)
         ORDER BY period
-      `).all();
+      `).all(minSec);
 
     case 'month':
       return db.prepare(`
         SELECT strftime('%Y-%m', ph.played_at) as period, COUNT(*) as play_count,
           COUNT(DISTINCT ph.slot) as unique_cds,
           COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
-          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+          COALESCE(SUM(ph.duration_played), 0) as play_time_sec
         FROM play_history ph
-        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
-        WHERE ph.played_at >= date('now', '-12 months')
+        WHERE ph.duration_played >= ? AND ph.played_at >= date('now', '-12 months')
         GROUP BY strftime('%Y-%m', ph.played_at)
         ORDER BY period
-      `).all();
+      `).all(minSec);
 
     case 'year':
       return db.prepare(`
         SELECT strftime('%Y', ph.played_at) as period, COUNT(*) as play_count,
           COUNT(DISTINCT ph.slot) as unique_cds,
           COUNT(DISTINCT ph.slot || '-' || ph.track_number) as unique_tracks,
-          COALESCE(SUM(t.duration_seconds), 0) as play_time_sec
+          COALESCE(SUM(ph.duration_played), 0) as play_time_sec
         FROM play_history ph
-        LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+        WHERE ph.duration_played >= ?
         GROUP BY strftime('%Y', ph.played_at)
         ORDER BY period
-      `).all();
+      `).all(minSec);
 
     default:
       return [];
@@ -505,9 +530,8 @@ export function resetPlayStats() {
 
 export function getEstimatedPlayTime() {
   const row = db.prepare(`
-    SELECT COALESCE(SUM(t.duration_seconds), 0) as total_seconds
-    FROM play_history ph
-    LEFT JOIN tracks t ON t.slot = ph.slot AND t.track_number = ph.track_number
+    SELECT COALESCE(SUM(duration_played), 0) as total_seconds
+    FROM play_history
   `).get();
   return row.total_seconds;
 }
@@ -521,7 +545,7 @@ export function getPlayStats(topLimit = 10) {
     weeklyActivity: getPlayActivity('week'),
     monthlyActivity: getPlayActivity('month'),
     yearlyActivity: getPlayActivity('year'),
-    totalPlays: db.prepare('SELECT COUNT(*) as count FROM play_history').get().count,
+    totalPlays: db.prepare('SELECT COUNT(*) as count FROM play_history WHERE duration_played >= ?').get(getStatsMinSeconds()).count,
     totalPlayTimeSec: getEstimatedPlayTime(),
   };
 }
@@ -564,6 +588,78 @@ export function getTopRated(limit = 50) {
     ORDER BY r.rating DESC, r.created_at DESC
     LIMIT ?
   `).all(limit);
+}
+
+// Full Backup Export
+export function exportBackup() {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    settings: getAllSettings(),
+    cds: getCDsWithTracks(),
+    playlists: getAllPlaylists().map(pl => getPlaylist(pl.id)),
+    favorites: getFavorites(),
+    ratings: db.prepare('SELECT slot, track_number, rating, created_at FROM ratings ORDER BY slot, track_number').all(),
+    playHistory: db.prepare('SELECT slot, track_number, player_id, played_at, duration_played FROM play_history ORDER BY played_at').all(),
+  };
+}
+
+// Full Backup Import
+export function importBackup(data) {
+  const tx = db.transaction(() => {
+    // Settings
+    if (data.settings) {
+      for (const [key, value] of Object.entries(data.settings)) {
+        setSetting(key, value);
+      }
+    }
+    // CDs + tracks
+    if (data.cds) {
+      for (const cd of data.cds) {
+        upsertCD(cd.slot, cd);
+        if (cd.tracks && cd.tracks.length) setTracks(cd.slot, cd.tracks);
+      }
+    }
+    // Playlists
+    if (data.playlists) {
+      for (const pl of data.playlists) {
+        const existing = db.prepare('SELECT id FROM playlists WHERE name = ?').get(pl.name);
+        let plId;
+        if (existing) {
+          plId = existing.id;
+        } else {
+          const r = db.prepare('INSERT INTO playlists (name, description) VALUES (?, ?)').run(pl.name, pl.description || '');
+          plId = r.lastInsertRowid;
+        }
+        if (pl.items) {
+          for (const item of pl.items) {
+            const maxPos = db.prepare('SELECT MAX(position) as max FROM playlist_items WHERE playlist_id = ?').get(plId);
+            db.prepare('INSERT INTO playlist_items (playlist_id, slot, track_number, position) VALUES (?, ?, ?, ?)')
+              .run(plId, item.slot, item.track_number || 0, (maxPos?.max || 0) + 1);
+          }
+        }
+      }
+    }
+    // Favorites
+    if (data.favorites) {
+      for (const f of data.favorites) {
+        db.prepare('INSERT OR IGNORE INTO favorites (slot, track_number) VALUES (?, ?)').run(f.slot, f.track_number || 0);
+      }
+    }
+    // Ratings
+    if (data.ratings) {
+      for (const r of data.ratings) {
+        db.prepare('INSERT OR REPLACE INTO ratings (slot, track_number, rating) VALUES (?, ?, ?)').run(r.slot, r.track_number || 0, r.rating);
+      }
+    }
+    // Play History
+    if (data.playHistory) {
+      for (const h of data.playHistory) {
+        db.prepare('INSERT INTO play_history (slot, track_number, player_id, played_at, duration_played) VALUES (?, ?, ?, ?, ?)').run(h.slot, h.track_number, h.player_id || 1, h.played_at, h.duration_played || 0);
+      }
+    }
+  });
+  tx();
 }
 
 export function getDb() {

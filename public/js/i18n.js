@@ -310,11 +310,22 @@ const translations = {
     'stats.resetConfirm': 'Spielstatistik wirklich zuruecksetzen? Alle Play-Daten werden geloescht.',
     'stats.resetDone': 'Statistik zurueckgesetzt',
 
+    // Backup
+    'backup.title': 'Backup',
+    'backup.hint': 'Exportiere alle Einstellungen, Bibliothek, Playlists, Bewertungen, Favoriten und Spielstatistiken als JSON-Datei. Importiere eine zuvor exportierte Datei zum Wiederherstellen.',
+    'backup.export': 'Export',
+    'backup.import': 'Import',
+    'backup.exportDone': 'Backup exportiert',
+    'backup.importDone': 'Backup importiert! Seite wird neu geladen...',
+    'backup.importConfirm': 'Backup wirklich importieren? Alle aktuellen Daten werden ueberschrieben.',
+    'backup.importError': 'Fehler beim Importieren',
+
     // Settings
     'settings.serialPort': 'Serieller Port',
     'settings.baudRate': 'Baudrate',
     'settings.model': 'Modell',
     'settings.maxDiscs': 'Max. Discs',
+    'settings.statsMinSeconds': 'Min. Spieldauer fuer Statistik (Sek.)',
     'settings.webPort': 'Web-Port',
     'settings.language': 'Sprache',
     'settings.langAuto': 'Automatisch',
@@ -662,11 +673,22 @@ const translations = {
     'stats.resetDone': 'Statistics reset',
     'stats.playTimeSec': 'Play Time',
 
+    // Backup
+    'backup.title': 'Backup',
+    'backup.hint': 'Export all settings, library, playlists, ratings, favorites and play statistics as JSON file. Import a previously exported file to restore.',
+    'backup.export': 'Export',
+    'backup.import': 'Import',
+    'backup.exportDone': 'Backup exported',
+    'backup.importDone': 'Backup imported! Page will reload...',
+    'backup.importConfirm': 'Really import backup? All current data will be overwritten.',
+    'backup.importError': 'Error importing backup',
+
     // Settings
     'settings.serialPort': 'Serial Port',
     'settings.baudRate': 'Baud Rate',
     'settings.model': 'Model',
     'settings.maxDiscs': 'Max Discs',
+    'settings.statsMinSeconds': 'Min. play duration for statistics (sec.)',
     'settings.webPort': 'Web Port',
     'settings.language': 'Language',
     'settings.langAuto': 'Automatic',

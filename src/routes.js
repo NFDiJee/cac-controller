@@ -611,6 +611,21 @@ export function createRoutes(playerManager, scanner, serial) {
     }
   });
 
+  // ── Backup Export/Import ──
+
+  router.get('/api/backup', (req, res) => {
+    res.json(db.exportBackup());
+  });
+
+  router.post('/api/backup', (req, res) => {
+    try {
+      db.importBackup(req.body);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── System Locale ──
 
   router.get('/api/system/locale', (req, res) => {

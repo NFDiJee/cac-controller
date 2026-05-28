@@ -873,6 +873,12 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: #fff;
   border-color: var(--accent);
 }
+.stats-reload {
+  margin-left: auto;
+  font-size: 1.1rem;
+  padding: 4px 10px;
+  line-height: 1;
+}
 .stats-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1026,4 +1032,38 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: var(--text-dim);
   min-width: 24px;
   text-align: right;
+}
+
+/* ── Playlist Drag & Drop ── */
+.playlist-detail-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pl-detail-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: background 0.15s;
+  gap: 8px;
+}
+.pl-detail-item:last-child { border-bottom: none; }
+.pl-detail-item.dragging { opacity: 0.3; }
+.pl-detail-item.drag-over { border-top: 2px solid var(--accent); }
+.pl-detail-item.touch-dragging { background: var(--accent); opacity: 0.9; border-radius: 8px; }
+.drag-handle {
+  cursor: grab;
+  color: var(--text-dim);
+  font-size: 1rem;
+  padding: 0 4px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.drag-handle:active { cursor: grabbing; }
+.btn-remove-item {
+  color: var(--red);
+  flex-shrink: 0;
+  font-size: 1.1rem;
 }

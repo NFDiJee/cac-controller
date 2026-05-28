@@ -1640,28 +1640,157 @@ async function createPlaylist() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+let _currentPlaylistDetail = null;
+
 async function showPlaylistDetail(id) {
   try {
     const pl = await api(`/playlists/${id}`);
-    document.getElementById('modalTitle').textContent = pl.name;
-    document.getElementById('modalContent').innerHTML = `
-      <div style="color:var(--text-dim);font-size:0.85rem;margin-bottom:12px">${escHtml(pl.description||'')}</div>
-      <div class="btn-group" style="margin-bottom:12px">
-        ${pl.items?.length > 0 ? `<button class="btn btn-primary btn-sm" onclick="playPlaylist(${id})">&#9654; ${t('playlists.playAll')}</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${id})">${t('playlists.delete')}</button>
-      </div>
-      ${pl.items?.length > 0 ? `<ul class="track-list">${pl.items.map(item => `
-        <li class="track-item">
-          <span class="track-num" onclick="loadAndPlayTrack(${item.slot},${item.track_number})">${item.slot}</span>
-          <div class="track-info" onclick="loadAndPlayTrack(${item.slot},${item.track_number})">
-            <div class="track-title">${escHtml(item.track_title||item.cd_title||`CD ${item.slot}`)}</div>
-            <div class="track-artist">${escHtml(item.track_artist||item.cd_artist||'')}</div>
-          </div>
-          <button class="btn-icon btn-remove-item" onclick="event.stopPropagation();removePlaylistItem(${id},${item.id})" title="${escAttr(t('playlists.remove'))}">&times;</button>
-        </li>`).join('')}</ul>` : `<div class="empty-state"><p>${t('playlists.emptyList')}</p></div>`}
-    `;
+    _currentPlaylistDetail = pl;
+    renderPlaylistDetail(pl);
     document.getElementById('cdDetailModal').classList.add('active');
   } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderPlaylistDetail(pl) {
+  document.getElementById('modalTitle').textContent = pl.name;
+  const items = pl.items || [];
+  let totalSec = 0;
+  items.forEach(it => { if (it.duration_seconds) totalSec += it.duration_seconds; });
+
+  let html = `<div style="color:var(--text-dim);font-size:0.85rem;margin-bottom:12px">
+    ${escHtml(pl.description||'')} ${items.length} ${t('playlists.items')}${totalSec ? ' · ' + formatDuration(totalSec) : ''}
+  </div>
+  <div class="btn-group" style="margin-bottom:12px">
+    ${items.length > 0 ? `<button class="btn btn-primary btn-sm" onclick="playPlaylist(${pl.id})">&#9654; ${t('playlists.playAll')}</button>` : ''}
+    <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${pl.id})">${t('playlists.delete')}</button>
+  </div>`;
+
+  if (items.length > 0) {
+    html += `<div class="playlist-detail-list" id="plDetailList">`;
+    html += items.map((item, idx) => `
+      <div class="pl-detail-item" draggable="true" data-idx="${idx}" data-item-id="${item.id}">
+        <span class="drag-handle" title="Drag">&#9776;</span>
+        <span class="track-num">${idx + 1}</span>
+        <div class="track-info" onclick="loadAndPlayTrack(${item.slot},${item.track_number})" style="cursor:pointer">
+          <div class="track-title">${escHtml(item.track_title||item.cd_title||`CD ${item.slot}`)}</div>
+          <div class="track-artist">${escHtml(item.track_artist||item.cd_artist||'')} · Slot ${item.slot} · Track ${item.track_number}</div>
+        </div>
+        <button class="btn-icon btn-remove-item" onclick="event.stopPropagation();removePlaylistItem(${pl.id},${item.id})" title="${escAttr(t('playlists.remove'))}">&times;</button>
+      </div>`).join('');
+    html += `</div>`;
+  } else {
+    html += `<div class="empty-state"><p>${t('playlists.emptyList')}</p></div>`;
+  }
+  document.getElementById('modalContent').innerHTML = html;
+  if (items.length > 1) initPlaylistDragDrop(pl.id);
+}
+
+function initPlaylistDragDrop(playlistId) {
+  const list = document.getElementById('plDetailList');
+  if (!list) return;
+  let dragIdx = null;
+
+  list.addEventListener('dragstart', e => {
+    const item = e.target.closest('.pl-detail-item');
+    if (!item) return;
+    dragIdx = parseInt(item.dataset.idx);
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragend', e => {
+    const item = e.target.closest('.pl-detail-item');
+    if (item) item.classList.remove('dragging');
+    list.querySelectorAll('.pl-detail-item').forEach(el => el.classList.remove('drag-over'));
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.pl-detail-item');
+    list.querySelectorAll('.pl-detail-item').forEach(el => el.classList.remove('drag-over'));
+    if (target && parseInt(target.dataset.idx) !== dragIdx) target.classList.add('drag-over');
+  });
+
+  list.addEventListener('drop', async e => {
+    e.preventDefault();
+    const target = e.target.closest('.pl-detail-item');
+    if (!target) return;
+    const dropIdx = parseInt(target.dataset.idx);
+    if (dragIdx === null || dragIdx === dropIdx) return;
+
+    const items = _currentPlaylistDetail.items;
+    const ids = items.map(i => i.id);
+    const [moved] = ids.splice(dragIdx, 1);
+    ids.splice(dropIdx, 0, moved);
+
+    try {
+      const updated = await api(`/playlists/${playlistId}/reorder`, 'PUT', { itemIds: ids });
+      _currentPlaylistDetail = updated;
+      renderPlaylistDetail(updated);
+    } catch (err) { toast(err.message, 'error'); }
+    dragIdx = null;
+  });
+
+  // Touch support
+  let touchItem = null, touchClone = null, touchStartY = 0;
+
+  list.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    const item = handle.closest('.pl-detail-item');
+    if (!item) return;
+    touchItem = item;
+    dragIdx = parseInt(item.dataset.idx);
+    touchStartY = e.touches[0].clientY;
+    touchClone = item.cloneNode(true);
+    touchClone.classList.add('touch-dragging');
+    touchClone.style.position = 'fixed';
+    touchClone.style.left = item.getBoundingClientRect().left + 'px';
+    touchClone.style.width = item.offsetWidth + 'px';
+    touchClone.style.top = item.getBoundingClientRect().top + 'px';
+    touchClone.style.zIndex = '9999';
+    touchClone.style.pointerEvents = 'none';
+    document.body.appendChild(touchClone);
+    item.style.opacity = '0.3';
+  }, { passive: true });
+
+  list.addEventListener('touchmove', e => {
+    if (!touchClone) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    touchClone.style.top = y - 20 + 'px';
+    list.querySelectorAll('.pl-detail-item').forEach(el => {
+      el.classList.remove('drag-over');
+      const rect = el.getBoundingClientRect();
+      if (y > rect.top && y < rect.bottom && el !== touchItem) el.classList.add('drag-over');
+    });
+  }, { passive: false });
+
+  list.addEventListener('touchend', async e => {
+    if (!touchClone) return;
+    touchClone.remove();
+    touchClone = null;
+    if (touchItem) touchItem.style.opacity = '';
+    const overEl = list.querySelector('.drag-over');
+    list.querySelectorAll('.pl-detail-item').forEach(el => el.classList.remove('drag-over'));
+    if (!overEl) { touchItem = null; return; }
+    const dropIdx = parseInt(overEl.dataset.idx);
+    if (dragIdx === dropIdx) { touchItem = null; return; }
+
+    const items = _currentPlaylistDetail.items;
+    const ids = items.map(i => i.id);
+    const [moved] = ids.splice(dragIdx, 1);
+    ids.splice(dropIdx, 0, moved);
+
+    try {
+      const updated = await api(`/playlists/${playlistId}/reorder`, 'PUT', { itemIds: ids });
+      _currentPlaylistDetail = updated;
+      renderPlaylistDetail(updated);
+    } catch (err) { toast(err.message, 'error'); }
+    touchItem = null;
+    dragIdx = null;
+  });
 }
 
 async function playPlaylist(id) {
@@ -2037,6 +2166,7 @@ async function loadSettings() {
     document.getElementById('settNodeName').value = settings.node_name || '';
     document.getElementById('settNodeRoom').value = settings.node_room || '';
     document.getElementById('settNodeApiKey').value = settings.node_api_key || '';
+    document.getElementById('settStatsMinSeconds').value = settings.stats_min_seconds || '30';
     document.getElementById('settLanguage').value = getStoredLanguagePref();
   } catch (err) { console.error(err); }
 }
@@ -2055,6 +2185,7 @@ async function saveSettings() {
       node_name: document.getElementById('settNodeName').value,
       node_room: document.getElementById('settNodeRoom').value,
       node_api_key: document.getElementById('settNodeApiKey').value,
+      stats_min_seconds: document.getElementById('settStatsMinSeconds').value,
       language: document.getElementById('settLanguage').value,
     });
     toast(t('settings.saved'), 'success');
@@ -2066,6 +2197,37 @@ function generateApiKey() {
   let key = '';
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('settNodeApiKey').value = key;
+}
+
+// ── Backup ──
+async function exportBackup() {
+  try {
+    const data = await api('/backup');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cac-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(t('backup.exportDone'), 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function importBackup(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (!confirm(t('backup.importConfirm'))) { fileInput.value = ''; return; }
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    await api('/backup', 'POST', data);
+    toast(t('backup.importDone'), 'success');
+    setTimeout(() => location.reload(), 1500);
+  } catch (err) {
+    toast(t('backup.importError') + ': ' + err.message, 'error');
+  }
+  fileInput.value = '';
 }
 
 // ── Terminal ──

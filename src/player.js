@@ -155,6 +155,29 @@ export class PlayerManager extends EventEmitter {
     console.log('[Player] Status polling stopped');
   }
 
+  // ── Play History Tracking ──
+
+  _startPlayTracking(playerId) {
+    const player = this.players.get(playerId);
+    if (!player || !player.disc || !player.track) return;
+    // Finalize any previous open tracking first
+    this._finalizePlayTracking(playerId);
+    const historyId = db.addPlayHistory(player.disc, player.track, playerId);
+    player._playHistoryId = historyId;
+    player._playStartedAt = Date.now();
+    console.log(`[Stats] Start tracking: player ${playerId}, slot ${player.disc}, track ${player.track}, id ${historyId}`);
+  }
+
+  _finalizePlayTracking(playerId) {
+    const player = this.players.get(playerId);
+    if (!player || !player._playHistoryId) return;
+    const elapsed = Math.round((Date.now() - player._playStartedAt) / 1000);
+    db.finalizePlayHistory(player._playHistoryId, elapsed);
+    console.log(`[Stats] Finalized: id ${player._playHistoryId}, duration ${elapsed}s`);
+    player._playHistoryId = null;
+    player._playStartedAt = null;
+  }
+
   // ── Response handler (decoupled from commands) ──
 
   _handleResponse(playerId, parsed) {
@@ -172,8 +195,13 @@ export class PlayerManager extends EventEmitter {
           player.modeLabel = parsed.label || parsed.raw;
           changed = true;
 
+          // Play started → begin tracking
           if (parsed.id === 'play' && player.disc && player.track) {
-            db.addPlayHistory(player.disc, player.track, playerId);
+            this._startPlayTracking(playerId);
+          }
+          // Play stopped → finalize tracking
+          if (previousMode === 'P04' && parsed.raw !== 'P04') {
+            this._finalizePlayTracking(playerId);
           }
 
           // Detect disc end: was playing → now stopped/paused/parked
@@ -211,6 +239,11 @@ export class PlayerManager extends EventEmitter {
           player.trackTimeMinutes = 0;
           player.trackTimeSeconds = 0;
           changed = true;
+
+          // Track changed while playing → finalize old, start new
+          if (player.mode === 'P04' && parsed.track && player.disc) {
+            this._startPlayTracking(playerId);
+          }
 
           if (this.gaplessPlay && player.toc && parsed.track === player.toc.lastTrack) {
             this._prepareGapless(playerId);
