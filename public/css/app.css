@@ -209,15 +209,15 @@ body {
 .btn-power {
   width: 44px; height: 40px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-dim);
+  border: 1px solid var(--red);
+  background: var(--red-dim);
+  color: var(--red);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   transition: all var(--transition);
   -webkit-tap-highlight-color: transparent;
 }
-.btn-power:hover { border-color: var(--accent); color: var(--text); }
+.btn-power:hover { border-color: var(--red); color: var(--red); }
 .btn-power.on {
   color: var(--green);
   border-color: var(--green);
