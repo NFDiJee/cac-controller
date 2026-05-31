@@ -2475,24 +2475,108 @@ function cdeditorOnChange(sel) {
 }
 
 function cdeditorAddCustomOption(field, val) {
-  // add new option to ALL selects of this field type
+  // add to ALL selects of this field, sorted
   document.querySelectorAll(`.cdeditor-select[data-field="${field}"]`).forEach(sel => {
-    if (![...sel.options].some(o => o.value === val)) {
-      const opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = val;
-      sel.appendChild(opt);
-    }
+    cdeditorInsertSorted(sel, val, 2); // skip "—" and "+ Custom"
   });
   // also add to filter dropdown
   const filterIds = { year: 'cdeditorFilterYear', label: 'cdeditorFilterLabel', genre: 'cdeditorFilterGenre' };
   const filterSel = document.getElementById(filterIds[field]);
-  if (filterSel && ![...filterSel.options].some(o => o.value === val)) {
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = val;
-    filterSel.appendChild(opt);
+  if (filterSel) cdeditorInsertSorted(filterSel, val, 1); // skip "All..."
+}
+
+function cdeditorInsertSorted(sel, val, skipCount) {
+  if ([...sel.options].some(o => o.value === val)) return;
+  const opt = document.createElement('option');
+  opt.value = val;
+  opt.textContent = val;
+  const valLower = val.toLowerCase();
+  for (let i = skipCount; i < sel.options.length; i++) {
+    if (sel.options[i].textContent.toLowerCase() > valLower) {
+      sel.insertBefore(opt, sel.options[i]);
+      return;
+    }
   }
+  sel.appendChild(opt);
+}
+
+function cdeditorManageField(field) {
+  const fieldLabels = { year: t('cdeditor.year'), label: t('cdeditor.label'), genre: t('cdeditor.genre') };
+  // collect values with counts
+  const counts = {};
+  for (const cd of library) {
+    const v = field === 'year' ? ((cd.year||'').match(/(\d{4})/)||[])[1] || '' : cd[field] || '';
+    if (v) counts[v] = (counts[v] || 0) + 1;
+  }
+  const values = Object.keys(counts).sort((a, b) => a.localeCompare(b));
+
+  document.getElementById('modalTitle').textContent = `${fieldLabels[field]} — ${t('cdeditor.manageValues')}`;
+  document.getElementById('modalContent').innerHTML = values.length === 0
+    ? `<p style="color:var(--text-dim)">${t('cdeditor.noResults')}</p>`
+    : `<div class="cdeditor-manage-list">${values.map(v => `
+      <div class="cdeditor-manage-item">
+        <span class="cdeditor-manage-name">${escHtml(v)}</span>
+        <span class="cdeditor-manage-count">${counts[v]}</span>
+        <button class="btn btn-dim btn-sm" onclick="cdeditorRenameValue('${escAttr(field)}','${escAttr(v)}')">${t('cdeditor.rename')}</button>
+        <button class="btn btn-danger btn-sm" onclick="cdeditorDeleteValue('${escAttr(field)}','${escAttr(v)}')">${t('cdeditor.delete')}</button>
+      </div>`).join('')}
+    </div>`;
+  document.getElementById('cdDetailModal').classList.add('active');
+}
+
+async function cdeditorRenameValue(field, oldValue) {
+  const fieldLabels = { year: t('cdeditor.year'), label: t('cdeditor.label'), genre: t('cdeditor.genre') };
+  // show inline rename in modal
+  const item = [...document.querySelectorAll('.cdeditor-manage-item')].find(el =>
+    el.querySelector('.cdeditor-manage-name').textContent === oldValue
+  );
+  if (!item) return;
+  const nameEl = item.querySelector('.cdeditor-manage-name');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-input';
+  input.value = oldValue;
+  input.style.cssText = 'font-size:0.85rem;padding:3px 6px;flex:1;min-width:0';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const doRename = async () => {
+    const newValue = input.value.trim();
+    if (!newValue || newValue === oldValue) {
+      input.replaceWith(nameEl);
+      return;
+    }
+    try {
+      const result = await api('/library/bulk-update-field', 'POST', { field, oldValue, newValue });
+      toast(t('cdeditor.renamed', result.changes, fieldLabels[field]));
+      await loadLibrary();
+      loadCDEditor();
+      cdeditorManageField(field); // refresh modal
+    } catch (err) { toast(err.message, 'error'); }
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doRename(); }
+    if (e.key === 'Escape') { e.preventDefault(); input.replaceWith(nameEl); }
+  });
+  input.addEventListener('blur', doRename);
+}
+
+async function cdeditorDeleteValue(field, value) {
+  const fieldLabels = { year: t('cdeditor.year'), label: t('cdeditor.label'), genre: t('cdeditor.genre') };
+  const count = library.filter(cd => {
+    const v = field === 'year' ? ((cd.year||'').match(/(\d{4})/)||[])[1] || '' : cd[field] || '';
+    return v === value;
+  }).length;
+  if (!confirm(t('cdeditor.deleteConfirm', value, count))) return;
+  try {
+    const result = await api('/library/bulk-update-field', 'POST', { field, oldValue: value, newValue: '' });
+    toast(t('cdeditor.deleted', result.changes, fieldLabels[field]));
+    await loadLibrary();
+    loadCDEditor();
+    cdeditorManageField(field);
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function cdeditorSave(sel) {

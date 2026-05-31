@@ -1236,6 +1236,40 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: var(--text-dim);
   white-space: nowrap;
 }
+.cdeditor-manage-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.cdeditor-manage-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 8px 0;
+}
+.cdeditor-manage-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.cdeditor-manage-item:last-child { border-bottom: none; }
+.cdeditor-manage-item .cdeditor-manage-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+.cdeditor-manage-item .cdeditor-manage-count {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.cdeditor-manage-item .btn { flex-shrink: 0; }
 .cdeditor-count {
   font-size: 0.72rem;
   color: var(--text-dim);

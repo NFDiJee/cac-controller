@@ -241,6 +241,14 @@ export function moveCD(fromSlot, toSlot) {
   return getCD(toSlot);
 }
 
+export function bulkUpdateField(field, oldValue, newValue) {
+  const allowed = ['year', 'genre', 'label'];
+  if (!allowed.includes(field)) throw new Error('Invalid field');
+  const stmt = db.prepare(`UPDATE cds SET ${field} = ?, updated_at = datetime('now') WHERE ${field} = ?`);
+  const result = stmt.run(newValue, oldValue);
+  return result.changes;
+}
+
 export function deleteCD(slot) {
   db.prepare('DELETE FROM cds WHERE slot = ?').run(slot);
 }

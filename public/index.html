@@ -478,6 +478,12 @@
             </select>
             <button class="btn btn-dim btn-sm" onclick="resetCDEditorSort()" title="Standard">&#8635;</button>
           </div>
+          <div class="cdeditor-manage-row">
+            <span class="cdeditor-sort-label" data-i18n="cdeditor.manageValues">Werte verwalten:</span>
+            <button class="btn btn-dim btn-sm" onclick="cdeditorManageField('year')" data-i18n="cdeditor.year">Jahr</button>
+            <button class="btn btn-dim btn-sm" onclick="cdeditorManageField('label')" data-i18n="cdeditor.label">Label</button>
+            <button class="btn btn-dim btn-sm" onclick="cdeditorManageField('genre')" data-i18n="cdeditor.genre">Genre</button>
+          </div>
           <div class="cdeditor-count" id="cdeditorCount"></div>
           <div id="cdeditorList"></div>
         </div>

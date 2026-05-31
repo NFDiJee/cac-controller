@@ -199,6 +199,14 @@ export function createRoutes(playerManager, scanner, serial) {
     res.json(db.getCD(slot));
   });
 
+  router.post('/api/library/bulk-update-field', (req, res) => {
+    const { field, oldValue, newValue } = req.body;
+    if (!field || !['year', 'genre', 'label'].includes(field)) return res.status(400).json({ error: 'Invalid field' });
+    if (oldValue === undefined) return res.status(400).json({ error: 'oldValue required' });
+    const changes = db.bulkUpdateField(field, oldValue, newValue || '');
+    res.json({ ok: true, changes });
+  });
+
   router.post('/api/library/:slot/move', (req, res) => {
     const fromSlot = parseInt(req.params.slot);
     const toSlot = parseInt(req.body.toSlot);
