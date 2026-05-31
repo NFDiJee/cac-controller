@@ -68,6 +68,7 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 - **Advanced Filtering** - Filter by genre, artist, year, or label; sort by multiple criteria
 - **Search** - Full-text search across all CDs and tracks
 - **Bulk Operations** - Select mode with checkboxes for batch deletion
+- **CD Library Editor** - Inline editing of all CD metadata (slot, title, artist, year, label, genre, notes) with searchable combobox dropdowns, 47 preset genres and 71 preset labels, custom values addable inline, recently used values at top, value management (rename/delete with bulk update), filter bar with "no value" option, sort controls, and cover thumbnails
 
 ### CD Scanner
 - **Single Slot Scan** - Load a disc, read its TOC (track count, total duration), and catalog it
@@ -80,7 +81,8 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 - **Ratings** - 1-5 star rating system for tracks and CDs with filterable views
 - **Play History** - Automatic tracking of all played tracks with timestamps and actual play duration
 - **Play Statistics** - Top tracks, top CDs, top artists, genre distribution, and activity charts with configurable minimum play duration threshold
-- **Backup / Restore** - Full database export and import as JSON (CDs, tracks, playlists, favorites, ratings, play history, settings)
+- **Backup / Restore** - Full database export and import as JSON (CDs, tracks, playlists, favorites, ratings, play history, settings); separate ZIP export/import for all cover images
+- **Cover Thumbnails** - Cover art displayed in History, Favorites, Ratings, and Playlists sections
 - **Serial Terminal** - Direct serial command interface for debugging and advanced control
 - **Bilingual UI** - German and English, auto-detected from system locale or manually selectable
 - **Mobile PWA** - Responsive design, installable on home screen, works in fullscreen
@@ -194,6 +196,8 @@ The server exposes a full REST API for programmatic control:
 | `PUT` | `/api/library/:slot` | Update CD metadata |
 | `DELETE` | `/api/library/:slot` | Delete CD and covers |
 | `POST` | `/api/library/bulk-delete` | Delete multiple `{ slots: [...] }` |
+| `POST` | `/api/library/bulk-update-field` | Bulk rename/delete field value `{ field, oldValue, newValue }` |
+| `POST` | `/api/library/:slot/move` | Move CD to different slot `{ newSlot }` |
 | `POST` | `/api/library/:slot/cover` | Upload cover (base64) |
 | `GET` | `/api/search?q=...` | Search library |
 
@@ -227,6 +231,8 @@ The server exposes a full REST API for programmatic control:
 |--------|----------|-------------|
 | `GET` | `/api/backup` | Export full database as JSON |
 | `POST` | `/api/backup` | Import database from JSON backup |
+| `GET` | `/api/backup/covers` | Export all cover images as ZIP |
+| `POST` | `/api/backup/covers` | Import covers from ZIP upload |
 
 ### Node API (Hub Communication)
 

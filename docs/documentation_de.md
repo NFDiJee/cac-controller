@@ -193,6 +193,7 @@ Die digitale Lautstaerke (0-255) entspricht folgenden dB-Werten:
 | WebSocket | ws | 8.x |
 | Datenbank | better-sqlite3 | 11.x |
 | Serielle Kommunikation | serialport | 12.x |
+| ZIP-Archivierung | adm-zip | 1.x |
 | Frontend | Vanilla JS (SPA) | - |
 | Internationalisierung | Eigene i18n-Loesung | DE/EN |
 
@@ -400,6 +401,10 @@ ratings (id, slot, track_number, rating 1-5, created_at)
 settings (key TEXT PRIMARY KEY, value TEXT)
 ```
 
+**Zusaetzliche Operationen:**
+- `moveCD(fromSlot, toSlot)` — Verschiebt eine CD mit allen zugehoerigen Daten (Tracks, Bewertungen, Favoriten, Wiedergabeverlauf) in einer Transaktion
+- `bulkUpdateField(field, oldValue, newValue)` — Aktualisiert einen Feldwert (Jahr/Genre/Label) bei allen betroffenen CDs
+
 **Standard-Einstellungen** werden beim ersten Start automatisch angelegt (Modell, Port, Baudrate, Polling-Intervalle, Sprache, MusicBrainz-Konfiguration, Hub/Netzwerk-Einstellungen, Statistik-Mindestspieldauer).
 
 Die Spalte `duration_played` in `play_history` speichert die tatsaechliche Spieldauer in Sekunden. Der Schwellenwert `stats_min_seconds` (Standard: 30) bestimmt, ab welcher Dauer ein Track in der Statistik gezaehlt wird.
@@ -418,7 +423,8 @@ Definiert alle HTTP-Endpunkte:
 - **Playlists** (10 Endpunkte): CRUD, Items hinzufuegen/entfernen, Reihenfolge, Abspielen
 - **Favoriten, Bewertungen, History, Suche, Statistiken, Einstellungen, Play-Modi**
 - **Statistiken** (2 Endpunkte): `GET /api/stats` (Top-Tracks mit Covers, Top-CDs, Top-Kuenstler, Genre-Verteilung, Aktivitaets-Diagramm), `DELETE /api/stats/reset` (Verlauf zuruecksetzen). Beruecksichtigt den konfigurierbaren Schwellenwert `stats_min_seconds`.
-- **Backup** (2 Endpunkte): `GET /api/backup` (vollstaendiger Datenbank-Export als JSON), `POST /api/backup` (Datenbank-Import aus JSON-Backup)
+- **Backup** (4 Endpunkte): `GET /api/backup` (vollstaendiger Datenbank-Export als JSON), `POST /api/backup` (Datenbank-Import aus JSON-Backup), `GET /api/backup/covers` (alle Cover-Bilder als ZIP exportieren), `POST /api/backup/covers` (Cover-Bilder aus ZIP importieren)
+- **Bibliothek-Editor** (2 Endpunkte): `POST /api/library/bulk-update-field` (Feldwert bei allen CDs umbenennen/loeschen), `POST /api/library/:slot/move` (CD in anderen Slot verschieben mit kaskadierender Aktualisierung von Tracks, Bewertungen, Favoriten, Wiedergabeverlauf)
 - **Playlist-Sortierung**: `PUT /api/playlists/:id/reorder` — Drag-and-Drop-Neuordnung mit temporaerer Positions-Bereinigung (UNIQUE-Constraint-sicher)
 - **JSON-Import**: Unterstuetzt verschiedene Formate, automatische Feld-Zuordnung, Track-Deduplizierung
 
@@ -439,7 +445,7 @@ Verwaltet alle WebSocket-Verbindungen und leitet Ereignisse weiter:
 
 Das Frontend ist eine Single Page Application (SPA) ohne Build-Tools oder Frameworks:
 
-- **index.html**: Komplettes HTML mit allen Ansichten (Player, Library, Scanner, Playlists, Favoriten, Bewertungen, History, Statistiken, Einstellungen, Terminal)
+- **index.html**: Komplettes HTML mit allen Ansichten (Player, Library, Scanner, Playlists, Favoriten, Bewertungen, History, Statistiken, CD-Bibliothek-Editor, Einstellungen, Terminal)
 - **app.js**: Gesamte Anwendungslogik (Zustand, Rendering, Event-Handler, API-Aufrufe, WebSocket-Verbindung)
 - **i18n.js**: Uebersetzungssystem mit ca. 200 Schluessel-Wert-Paaren fuer Deutsch und Englisch
 - **app.css**: Vollstaendiges Styling im Dark Theme mit CSS Custom Properties
@@ -464,7 +470,36 @@ Die WebSocket-Verbindung liefert alle Aenderungen in Echtzeit:
 - **Playlist-Status**: Aktueller Index, Player-Zuordnung
 - **Verbindungsstatus**: Seriell verbunden/getrennt
 
-### 4.4 Cover-Upload
+### 4.4 CD Bibliothek Editor
+
+Der CD Bibliothek Editor (unter "Mehr") ermoeglicht die vollstaendige Inline-Bearbeitung aller CD-Metadaten:
+
+**Bearbeitbare Felder:**
+- **Slot** — Aenderbar mit automatischer Verschiebung aller zugehoerigen Daten (Tracks, Bewertungen, Favoriten, Wiedergabeverlauf)
+- **Titel, Kuenstler, Notizen** — Inline-Textfelder mit sofortigem Speichern (Fire-and-Forget)
+- **Jahr, Label, Genre** — Eigene Combobox-Komponente mit Suchfunktion, 47 vordefinierten Genres und 71 vordefinierten Labels
+
+**Combobox-Komponente:**
+- Ersetzt native `<select>`-Elemente fuer durchsuchbare Dropdowns
+- Mehrzeichen-Typeahead-Suche (nicht nur Einzelzeichen wie bei nativen Selects)
+- Zuletzt verwendete Werte werden oben angezeigt (max. 5 pro Feld)
+- Individuelle Werte koennen inline hinzugefuegt werden (ohne Browser-Prompts)
+- Tastaturnavigation: Pfeiltasten, Enter, Escape
+
+**Werteverwaltung:**
+- Umbenennung eines Wertes (z.B. Genre "Rock" in "Rock/Pop") mit automatischer Aktualisierung aller betroffenen CDs
+- Loeschung eines Wertes mit Bulk-Update ueber `POST /api/library/bulk-update-field`
+
+**Filter und Sortierung:**
+- Filterleiste: Slot (Nummer), Titel (Text), Kuenstler (Text), Jahr/Label/Genre (Dropdown mit "Ohne Wert"-Option)
+- Sortierung nach Slot, Titel, Kuenstler, Jahr, Label oder Genre (aufsteigend/absteigend)
+- Ergebnisanzahl wird live angezeigt
+
+**Darstellung:**
+- Zweizeilige Card-Ansicht pro CD mit Cover-Thumbnail
+- Gruener Flash bei erfolgreichem Speichern
+
+### 4.5 Cover-Upload
 
 Cover-Bilder werden clientseitig verarbeitet:
 1. Dateiauswahl oder Drag & Drop

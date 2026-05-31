@@ -38,7 +38,7 @@ The CAC Controller is a Node.js web application that runs on a Raspberry Pi and 
 - **Scanner** — Automatically read and catalog CDs
 - **Playlists** — Create custom playback lists with drag-and-drop reordering
 - **Statistics** — Top tracks, top CDs, top artists, genre distribution, and activity charts
-- **Backup / Restore** — Full database export and import as JSON
+- **Backup / Restore** — Full database export and import as JSON; separate ZIP export/import for cover images
 - **PWA** — Installable as an app on smartphones
 
 ### Supported Pioneer Models

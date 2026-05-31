@@ -181,6 +181,8 @@ Unter **Einstellungen > Backup** kann die gesamte Datenbank als JSON exportiert 
 
 - **Export** — Laedt eine JSON-Datei mit allen CDs, Tracks, Playlists, Favoriten, Bewertungen, Wiedergabeverlauf und Einstellungen herunter
 - **Import** — Stellt eine zuvor exportierte Backup-Datei wieder her (ueberschreibt alle vorhandenen Daten)
+- **Cover-Export** — Laedt ein ZIP-Archiv mit allen gespeicherten Cover-Bildern herunter
+- **Cover-Import** — Stellt Cover-Bilder aus einem zuvor exportierten ZIP-Archiv wieder her
 
 ## Schritt 13: PWA auf dem Smartphone
 

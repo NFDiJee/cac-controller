@@ -193,6 +193,7 @@ The digital volume (0-255) corresponds to the following dB values:
 | WebSocket | ws | 8.x |
 | Database | better-sqlite3 | 11.x |
 | Serial Communication | serialport | 12.x |
+| ZIP Archiving | adm-zip | 1.x |
 | Frontend | Vanilla JS (SPA) | - |
 | Internationalization | Custom i18n solution | DE/EN |
 
@@ -400,6 +401,10 @@ ratings (id, slot, track_number, rating 1-5, created_at)
 settings (key TEXT PRIMARY KEY, value TEXT)
 ```
 
+**Additional Operations:**
+- `moveCD(fromSlot, toSlot)` — Moves a CD with all related data (tracks, ratings, favorites, play history) in a single transaction
+- `bulkUpdateField(field, oldValue, newValue)` — Updates a field value (year/genre/label) across all affected CDs
+
 **Default settings** are automatically created on first start (model, port, baud rate, polling intervals, language, MusicBrainz configuration, Hub/Network settings, statistics minimum play duration).
 
 The `duration_played` column in `play_history` stores the actual play duration in seconds. The `stats_min_seconds` threshold (default: 30) determines the minimum duration for a track to count in statistics.
@@ -418,7 +423,8 @@ Defines all HTTP endpoints:
 - **Playlists** (10 endpoints): CRUD, add/remove items, reorder, play
 - **Favorites, Ratings, History, Search, Statistics, Settings, Play Modes**
 - **Statistics** (2 endpoints): `GET /api/stats` (top tracks with covers, top CDs, top artists, genre distribution, activity chart), `DELETE /api/stats/reset` (reset play history). Respects the configurable `stats_min_seconds` threshold.
-- **Backup** (2 endpoints): `GET /api/backup` (full database export as JSON), `POST /api/backup` (database import from JSON backup)
+- **Backup** (4 endpoints): `GET /api/backup` (full database export as JSON), `POST /api/backup` (database import from JSON backup), `GET /api/backup/covers` (export all cover images as ZIP), `POST /api/backup/covers` (import covers from ZIP upload)
+- **Library Editor** (2 endpoints): `POST /api/library/bulk-update-field` (bulk rename/delete field value across all CDs), `POST /api/library/:slot/move` (move CD to different slot with cascading updates to tracks, ratings, favorites, play history)
 - **Playlist Reorder**: `PUT /api/playlists/:id/reorder` — Drag-and-drop reordering with temporary position clearing (UNIQUE constraint safe)
 - **JSON Import**: Supports various formats, automatic field mapping, track deduplication
 
@@ -439,7 +445,7 @@ Manages all WebSocket connections and forwards events:
 
 The frontend is a Single Page Application (SPA) without build tools or frameworks:
 
-- **index.html**: Complete HTML with all views (Player, Library, Scanner, Playlists, Favorites, Ratings, History, Statistics, Settings, Terminal)
+- **index.html**: Complete HTML with all views (Player, Library, Scanner, Playlists, Favorites, Ratings, History, Statistics, CD Library Editor, Settings, Terminal)
 - **app.js**: All application logic (state, rendering, event handlers, API calls, WebSocket connection)
 - **i18n.js**: Translation system with ~200 key-value pairs for German and English
 - **app.css**: Complete styling in dark theme with CSS Custom Properties
@@ -464,7 +470,36 @@ The WebSocket connection delivers all changes in real-time:
 - **Playlist Status**: Current index, player assignment
 - **Connection Status**: Serial connected/disconnected
 
-### 4.4 Cover Upload
+### 4.4 CD Library Editor
+
+The CD Library Editor (under "More") enables full inline editing of all CD metadata:
+
+**Editable Fields:**
+- **Slot** — Changeable with automatic migration of all related data (tracks, ratings, favorites, play history)
+- **Title, Artist, Notes** — Inline text fields with immediate save (fire-and-forget)
+- **Year, Label, Genre** — Custom combobox component with search, 47 preset genres and 71 preset labels
+
+**Combobox Component:**
+- Replaces native `<select>` elements for searchable dropdowns
+- Multi-character typeahead search (not just single character like native selects)
+- Recently used values shown at top (max 5 per field)
+- Custom values can be added inline (no browser prompts)
+- Keyboard navigation: arrow keys, Enter, Escape
+
+**Value Management:**
+- Rename a value (e.g., genre "Rock" to "Rock/Pop") with automatic bulk update of all affected CDs
+- Delete a value with bulk update via `POST /api/library/bulk-update-field`
+
+**Filtering and Sorting:**
+- Filter bar: Slot (number), Title (text), Artist (text), Year/Label/Genre (dropdown with "no value" option)
+- Sort by slot, title, artist, year, label, or genre (ascending/descending)
+- Result count displayed live
+
+**Display:**
+- Two-line card layout per CD with cover thumbnail
+- Green flash on successful save
+
+### 4.5 Cover Upload
 
 Cover images are processed client-side:
 1. File selection or drag & drop
