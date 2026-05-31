@@ -283,7 +283,12 @@ export function updateTrack(slot, trackNumber, data) {
 
 // Playlists
 export function getAllPlaylists() {
-  return db.prepare('SELECT * FROM playlists ORDER BY name').all();
+  const playlists = db.prepare('SELECT * FROM playlists ORDER BY name').all();
+  const itemStmt = db.prepare('SELECT slot, track_number FROM playlist_items WHERE playlist_id = ? ORDER BY position');
+  for (const pl of playlists) {
+    pl.items = itemStmt.all(pl.id);
+  }
+  return playlists;
 }
 
 export function getPlaylist(id) {
