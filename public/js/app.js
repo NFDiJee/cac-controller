@@ -2287,6 +2287,25 @@ const CDEDITOR_LABELS = [
 
 let _cdeditorYearOpts = '', _cdeditorLabelOpts = '', _cdeditorGenreOpts = '';
 
+// ── Typeahead for selects ──
+let _typeaheadStr = '', _typeaheadTimer = null;
+document.addEventListener('keydown', e => {
+  const sel = e.target;
+  if (sel.tagName !== 'SELECT' || !sel.classList.contains('cdeditor-select')) return;
+  if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
+  e.preventDefault();
+  clearTimeout(_typeaheadTimer);
+  _typeaheadStr += e.key.toLowerCase();
+  _typeaheadTimer = setTimeout(() => { _typeaheadStr = ''; }, 1000);
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value && sel.options[i].value !== '__custom__' &&
+        sel.options[i].textContent.toLowerCase().startsWith(_typeaheadStr)) {
+      sel.selectedIndex = i;
+      break;
+    }
+  }
+});
+
 function loadCDEditor() {
   const container = document.getElementById('cdeditorList');
   if (!library || library.length === 0) {
