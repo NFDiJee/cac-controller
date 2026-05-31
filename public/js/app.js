@@ -2315,24 +2315,30 @@ function loadCDEditor() {
 
   const sorted = [...library].sort((a, b) => a.slot - b.slot);
   container.innerHTML = sorted.map(cd => {
+    const coverHtml = cd.cover_url
+      ? `<img src="${escHtml(cd.cover_url)}" alt="" onerror="this.outerHTML='<span class=cdeditor-cover-ph>&#9834;</span>'">`
+      : `<span class="cdeditor-cover-ph">&#9834;</span>`;
     return `<div class="cdeditor-item" data-slot="${cd.slot}">
-      <div class="cdeditor-row1">
-        <span class="cdeditor-slot">${cd.slot}</span>
-        <span class="cdeditor-title">${escHtml(cd.title || t('library.unknown'))}</span>
-        <span class="cdeditor-artist">${escHtml(cd.artist || '')}</span>
-      </div>
-      <div class="cdeditor-row2">
-        <div class="cdeditor-field">
-          <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
-          <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select>
+      <div class="cdeditor-cover">${coverHtml}</div>
+      <div class="cdeditor-body">
+        <div class="cdeditor-row1">
+          <span class="cdeditor-slot">${cd.slot}</span>
+          <span class="cdeditor-title">${escHtml(cd.title || t('library.unknown'))}</span>
         </div>
-        <div class="cdeditor-field">
-          <span class="cdeditor-field-label">${t('cdeditor.label')}</span>
-          <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select>
-        </div>
-        <div class="cdeditor-field">
-          <span class="cdeditor-field-label">${t('cdeditor.genre')}</span>
-          <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select>
+        <div class="cdeditor-artist">${escHtml(cd.artist || '')}</div>
+        <div class="cdeditor-row2">
+          <div class="cdeditor-field">
+            <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
+            <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select>
+          </div>
+          <div class="cdeditor-field">
+            <span class="cdeditor-field-label">${t('cdeditor.label')}</span>
+            <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select>
+          </div>
+          <div class="cdeditor-field">
+            <span class="cdeditor-field-label">${t('cdeditor.genre')}</span>
+            <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select>
+          </div>
         </div>
       </div>
     </div>`;

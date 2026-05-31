@@ -1070,29 +1070,57 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 
 /* ── CD Editor ── */
 .cdeditor-item {
+  display: flex;
+  gap: 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   transition: background 0.2s;
 }
 .cdeditor-item:hover { background: var(--bg-card-hover); }
+.cdeditor-cover {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cdeditor-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cdeditor-cover-ph {
+  font-size: 1.5rem;
+  color: var(--text-muted);
+}
+.cdeditor-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .cdeditor-row1 {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 8px;
 }
 .cdeditor-slot {
   flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--accent);
   background: var(--accent-dim);
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 4px;
-  min-width: 36px;
+  min-width: 32px;
   text-align: center;
 }
 .cdeditor-title {
@@ -1106,38 +1134,38 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 }
 .cdeditor-artist {
   color: var(--text-dim);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 1;
-  min-width: 0;
+  line-height: 1.2;
 }
 .cdeditor-row2 {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 2px;
 }
 .cdeditor-field {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .cdeditor-field-label {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .cdeditor-select {
   width: 100%;
-  padding: 5px 8px;
+  padding: 4px 6px;
   background: var(--bg-input);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   appearance: auto;
 }
 .cdeditor-select:focus { border-color: var(--accent); outline: none; }
