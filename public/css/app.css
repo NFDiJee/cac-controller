@@ -1204,6 +1204,11 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 .cdeditor-notes-input:focus { color: var(--text); }
 .cdeditor-notes-input::placeholder { font-style: italic; }
 .cdeditor-select:focus { border-color: var(--accent); outline: none; }
+.cdeditor-custom-input {
+  border-color: var(--accent) !important;
+  background: var(--bg-input) !important;
+  caret-color: var(--accent);
+}
 .cdeditor-select.changed { border-color: var(--green); background: var(--green-dim); }
 .cdeditor-filters {
   display: flex;

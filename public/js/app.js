@@ -2432,30 +2432,66 @@ function resetCDEditorFilters() {
 
 function cdeditorOnChange(sel) {
   if (sel.value === '__custom__') {
-    const fieldLabels = { year: t('cdeditor.year'), label: t('cdeditor.label'), genre: t('cdeditor.genre') };
-    const custom = prompt(t('cdeditor.enterCustom', fieldLabels[sel.dataset.field]));
-    if (custom && custom.trim()) {
-      const val = custom.trim();
-      // add option if not exists
-      if (![...sel.options].some(o => o.value === val)) {
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val;
-        sel.appendChild(opt);
-      }
-      sel.value = val;
-      cdeditorSave(sel);
+    const field = sel.dataset.field;
+    const cd = library.find(c => c.slot == sel.dataset.slot);
+
+    // restore select to previous value
+    if (field === 'year') {
+      sel.value = cd?.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
     } else {
-      // restore previous value
-      const cd = library.find(c => c.slot == sel.dataset.slot);
-      if (sel.dataset.field === 'year') {
-        sel.value = cd?.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
-      } else {
-        sel.value = cd?.[sel.dataset.field] || '';
-      }
+      sel.value = cd?.[field] || '';
     }
+
+    // create inline input replacing the select
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'cdeditor-select cdeditor-custom-input';
+    input.placeholder = t('cdeditor.enterCustom', '');
+    input.dataset.field = field;
+    input.dataset.slot = sel.dataset.slot;
+    sel.style.display = 'none';
+    sel.parentNode.appendChild(input);
+    input.focus();
+
+    const finish = (save) => {
+      const val = input.value.trim();
+      input.remove();
+      sel.style.display = '';
+      if (save && val) {
+        cdeditorAddCustomOption(field, val);
+        sel.value = val;
+        cdeditorSave(sel);
+      }
+    };
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
   } else {
     cdeditorSave(sel);
+  }
+}
+
+function cdeditorAddCustomOption(field, val) {
+  // add new option to ALL selects of this field type
+  document.querySelectorAll(`.cdeditor-select[data-field="${field}"]`).forEach(sel => {
+    if (![...sel.options].some(o => o.value === val)) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      sel.appendChild(opt);
+    }
+  });
+  // also add to filter dropdown
+  const filterIds = { year: 'cdeditorFilterYear', label: 'cdeditorFilterLabel', genre: 'cdeditorFilterGenre' };
+  const filterSel = document.getElementById(filterIds[field]);
+  if (filterSel && ![...filterSel.options].some(o => o.value === val)) {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val;
+    filterSel.appendChild(opt);
   }
 }
 
