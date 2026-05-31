@@ -268,6 +268,10 @@ const translations = {
     'cdeditor.filterTitle': 'Titel...',
     'cdeditor.filterArtist': 'Interpret...',
     'cdeditor.noResults': 'Keine CDs gefunden.',
+    'cdeditor.notes': 'Notizen...',
+    'cdeditor.slotMove': 'Slot-Nr. aendern',
+    'cdeditor.slotMoved': 'CD von Slot {0} nach {1} verschoben',
+    'cdeditor.invalidSlot': 'Ungueltige Slot-Nummer (1-500)',
 
     // History
     'history.clear': 'Verlauf loeschen',
@@ -647,6 +651,10 @@ const translations = {
     'cdeditor.filterTitle': 'Title...',
     'cdeditor.filterArtist': 'Artist...',
     'cdeditor.noResults': 'No CDs found.',
+    'cdeditor.notes': 'Notes...',
+    'cdeditor.slotMove': 'Change slot number',
+    'cdeditor.slotMoved': 'CD moved from slot {0} to {1}',
+    'cdeditor.invalidSlot': 'Invalid slot number (1-500)',
 
     // History
     'history.clear': 'Clear history',

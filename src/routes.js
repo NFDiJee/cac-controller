@@ -199,6 +199,18 @@ export function createRoutes(playerManager, scanner, serial) {
     res.json(db.getCD(slot));
   });
 
+  router.post('/api/library/:slot/move', (req, res) => {
+    const fromSlot = parseInt(req.params.slot);
+    const toSlot = parseInt(req.body.toSlot);
+    if (!toSlot || toSlot < 1 || toSlot > 500) return res.status(400).json({ error: 'Invalid target slot' });
+    const existing = db.getCD(toSlot);
+    if (existing) return res.status(409).json({ error: 'Target slot occupied' });
+    const cd = db.getCD(fromSlot);
+    if (!cd) return res.status(404).json({ error: 'CD not found' });
+    const moved = db.moveCD(fromSlot, toSlot);
+    res.json(moved);
+  });
+
   router.delete('/api/library/:slot', (req, res) => {
     const slot = parseInt(req.params.slot);
     deleteCoversForSlot(slot);

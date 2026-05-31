@@ -224,6 +224,23 @@ export function upsertCD(slot, data) {
   return getCD(slot);
 }
 
+export function moveCD(fromSlot, toSlot) {
+  const transaction = db.transaction(() => {
+    // move tracks
+    db.prepare('UPDATE tracks SET slot = ? WHERE slot = ?').run(toSlot, fromSlot);
+    // move ratings
+    db.prepare('UPDATE ratings SET slot = ? WHERE slot = ?').run(toSlot, fromSlot);
+    // move favorites
+    db.prepare('UPDATE favorites SET slot = ? WHERE slot = ?').run(toSlot, fromSlot);
+    // move play_history
+    db.prepare('UPDATE play_history SET slot = ? WHERE slot = ?').run(toSlot, fromSlot);
+    // move cd
+    db.prepare('UPDATE cds SET slot = ?, updated_at = datetime(\'now\') WHERE slot = ?').run(toSlot, fromSlot);
+  });
+  transaction();
+  return getCD(toSlot);
+}
+
 export function deleteCD(slot) {
   db.prepare('DELETE FROM cds WHERE slot = ?').run(slot);
 }

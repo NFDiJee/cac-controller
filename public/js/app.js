@@ -2345,10 +2345,10 @@ function renderCDEditorList() {
       <div class="cdeditor-cover">${coverHtml}</div>
       <div class="cdeditor-body">
         <div class="cdeditor-row1">
-          <span class="cdeditor-slot">${cd.slot}</span>
-          <span class="cdeditor-title">${escHtml(cd.title || t('library.unknown'))}</span>
+          <input type="number" class="cdeditor-slot-input" data-field="slot" data-slot="${cd.slot}" value="${cd.slot}" min="1" max="500" onchange="cdeditorMoveSlot(this)" title="${t('cdeditor.slotMove')}">
+          <input type="text" class="cdeditor-text-input cdeditor-title-input" data-field="title" data-slot="${cd.slot}" value="${escAttr(cd.title||'')}" placeholder="${t('cdeditor.cdTitle')}" onchange="cdeditorSaveText(this)">
         </div>
-        <div class="cdeditor-artist">${escHtml(cd.artist || '')}</div>
+        <input type="text" class="cdeditor-text-input cdeditor-artist-input" data-field="artist" data-slot="${cd.slot}" value="${escAttr(cd.artist||'')}" placeholder="${t('cdeditor.artist')}" onchange="cdeditorSaveText(this)">
         <div class="cdeditor-row2">
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
@@ -2363,11 +2363,12 @@ function renderCDEditorList() {
             <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorGenreOpts}</select>
           </div>
         </div>
+        <input type="text" class="cdeditor-text-input cdeditor-notes-input" data-field="notes" data-slot="${cd.slot}" value="${escAttr(cd.notes||'')}" placeholder="${t('cdeditor.notes')}" onchange="cdeditorSaveText(this)">
       </div>
     </div>`;
   }).join('');
 
-  // set current values
+  // set current values for selects
   for (const cd of filtered) {
     const item = container.querySelector(`.cdeditor-item[data-slot="${cd.slot}"]`);
     if (!item) continue;
@@ -2454,6 +2455,43 @@ async function cdeditorSave(sel) {
     const cd = library.find(c => c.slot == slot);
     if (cd) cd[field] = value;
   } catch (err) { toast(err.message, 'error'); }
+}
+
+async function cdeditorSaveText(input) {
+  const slot = input.dataset.slot;
+  const field = input.dataset.field;
+  const value = input.value;
+  try {
+    await api(`/library/${slot}`, 'PUT', { [field]: value || '' });
+    input.classList.add('changed');
+    input.closest('.cdeditor-item').classList.add('cdeditor-saved');
+    setTimeout(() => {
+      input.classList.remove('changed');
+      input.closest('.cdeditor-item').classList.remove('cdeditor-saved');
+    }, 1500);
+    const cd = library.find(c => c.slot == slot);
+    if (cd) cd[field] = value;
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function cdeditorMoveSlot(input) {
+  const fromSlot = parseInt(input.dataset.slot);
+  const toSlot = parseInt(input.value);
+  if (toSlot === fromSlot) return;
+  if (!toSlot || toSlot < 1 || toSlot > 500) {
+    toast(t('cdeditor.invalidSlot'), 'error');
+    input.value = fromSlot;
+    return;
+  }
+  try {
+    await api(`/library/${fromSlot}/move`, 'POST', { toSlot });
+    toast(t('cdeditor.slotMoved', fromSlot, toSlot));
+    await loadLibrary();
+    loadCDEditor();
+  } catch (err) {
+    toast(err.message, 'error');
+    input.value = fromSlot;
+  }
 }
 
 function formatDuration(seconds) {
