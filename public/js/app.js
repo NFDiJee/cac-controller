@@ -2289,12 +2289,14 @@ let _cdeditorYearOpts = '', _cdeditorLabelOpts = '', _cdeditorGenreOpts = '';
 
 // ── Combobox for selects ──
 let _cdeComboData = { year: [], label: [], genre: [] };
+let _cdeRecentlyUsed = { year: [], label: [], genre: [] };
+const CDE_RECENT_MAX = 5;
 
 function cdeComboCreate(field, slot) {
   return `<div class="cde-combo" data-field="${field}" data-slot="${slot}">
     <div class="cde-combo-display" onclick="cdeComboToggle(this)" tabindex="0" onkeydown="cdeComboKey(event,this)">—</div>
     <div class="cde-combo-drop">
-      <div class="cde-combo-search"><input type="text" placeholder="${t('library.search')}" oninput="cdeComboFilter(this)"></div>
+      <div class="cde-combo-search"><input type="text" placeholder="${t('library.search')}" oninput="cdeComboFilter(this)" onkeydown="cdeComboSearchKey(event)"></div>
       <div class="cde-combo-opts"></div>
     </div>
   </div>`;
@@ -2312,18 +2314,39 @@ function cdeComboRenderOpts(combo) {
   const opts = combo.querySelector('.cde-combo-opts');
   const searchVal = (combo.querySelector('.cde-combo-search input')?.value || '').toLowerCase();
   const items = _cdeComboData[field] || [];
+  const recent = _cdeRecentlyUsed[field] || [];
   const filtered = searchVal ? items.filter(v => v.toLowerCase().includes(searchVal)) : items;
 
-  let html = `<div class="cde-combo-opt${!currentVal ? ' selected' : ''}" data-val="" onclick="cdeComboSelect(this)">—</div>`;
+  let html = '';
+
+  // recently used section (only when not searching)
+  if (!searchVal && recent.length > 0) {
+    html += `<div class="cde-combo-opt cde-combo-section">${t('cdeditor.recent')}</div>`;
+    html += recent.map(v =>
+      `<div class="cde-combo-opt cde-recent${v === currentVal ? ' selected' : ''}" data-val="${escAttr(v)}" onclick="cdeComboSelect(this)">${escHtml(v)}</div>`
+    ).join('');
+    html += `<div class="cde-combo-opt cde-combo-section">${t('cdeditor.allValues')}</div>`;
+  }
+
+  html += `<div class="cde-combo-opt${!currentVal ? ' selected' : ''}" data-val="" onclick="cdeComboSelect(this)">—</div>`;
   html += filtered.map(v =>
     `<div class="cde-combo-opt${v === currentVal ? ' selected' : ''}" data-val="${escAttr(v)}" onclick="cdeComboSelect(this)">${escHtml(v)}</div>`
   ).join('');
   html += `<div class="cde-combo-opt custom-opt" data-val="__custom__" onclick="cdeComboSelect(this)">+ ${t('cdeditor.custom')}</div>`;
   opts.innerHTML = html;
 
-  // scroll selected into view
-  const sel = opts.querySelector('.selected');
-  if (sel) sel.scrollIntoView({ block: 'nearest' });
+  // highlight first match when searching
+  if (searchVal && filtered.length > 0) {
+    const firstMatch = opts.querySelector('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)');
+    if (firstMatch) {
+      opts.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+      firstMatch.classList.add('highlight');
+      firstMatch.scrollIntoView({ block: 'nearest' });
+    }
+  } else {
+    const sel = opts.querySelector('.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 function cdeComboToggle(display) {
@@ -2348,15 +2371,46 @@ function cdeComboFilter(input) {
   cdeComboRenderOpts(combo);
 }
 
+function cdeComboSearchKey(e) {
+  const combo = e.target.closest('.cde-combo');
+  const opts = combo.querySelector('.cde-combo-opts');
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const highlighted = opts.querySelector('.highlight') || opts.querySelector('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)');
+    if (highlighted) cdeComboSelect(highlighted);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    combo.querySelector('.cde-combo-drop').classList.remove('open');
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const allOpts = [...opts.querySelectorAll('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)')];
+    if (allOpts.length === 0) return;
+    const cur = opts.querySelector('.highlight');
+    let idx = cur ? allOpts.indexOf(cur) : -1;
+    if (cur) cur.classList.remove('highlight');
+    idx = e.key === 'ArrowDown' ? Math.min(idx + 1, allOpts.length - 1) : Math.max(idx - 1, 0);
+    allOpts[idx].classList.add('highlight');
+    allOpts[idx].scrollIntoView({ block: 'nearest' });
+  }
+}
+
 function cdeComboKey(e, display) {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cdeComboToggle(display); }
+}
+
+function cdeTrackRecent(field, val) {
+  if (!val) return;
+  const list = _cdeRecentlyUsed[field];
+  const idx = list.indexOf(val);
+  if (idx !== -1) list.splice(idx, 1);
+  list.unshift(val);
+  if (list.length > CDE_RECENT_MAX) list.pop();
 }
 
 function cdeComboSelect(optEl) {
   const combo = optEl.closest('.cde-combo');
   const val = optEl.dataset.val;
   const field = combo.dataset.field;
-  const slot = combo.dataset.slot;
   const drop = combo.querySelector('.cde-combo-drop');
   drop.classList.remove('open');
 
@@ -2365,6 +2419,7 @@ function cdeComboSelect(optEl) {
     return;
   }
   cdeComboSetValue(combo, val);
+  cdeTrackRecent(field, val);
   cdeComboSave(combo);
 }
 

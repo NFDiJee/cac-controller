@@ -1246,6 +1246,16 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 .cde-combo-opt:hover, .cde-combo-opt.highlight { background: var(--accent-dim); color: var(--accent); }
 .cde-combo-opt.selected { color: var(--green); font-weight: 600; }
 .cde-combo-opt.custom-opt { color: var(--accent); font-style: italic; border-top: 1px solid var(--border); }
+.cde-combo-section {
+  font-size: 0.65rem !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 8px 2px !important;
+  cursor: default !important;
+  pointer-events: none;
+}
+.cde-combo-opt.cde-recent { color: var(--yellow); }
 .cdeditor-slot-input {
   width: 52px;
   flex-shrink: 0;
