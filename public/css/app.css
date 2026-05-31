@@ -259,10 +259,18 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .btn:hover { background: var(--bg-card-hover); }
-.btn-primary {
-  background: var(--accent); border-color: var(--accent); color: #fff;
+.btn-primary, .btn-accent {
+  background: var(--accent); border-color: var(--accent); color: #000;
 }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover, .btn-accent:hover { background: var(--accent-hover); }
+
+.btn-dim {
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.btn-dim:hover { border-color: var(--text-dim); color: var(--text); }
+
 .btn-danger { border-color: var(--red); color: var(--red); }
 .btn-danger:hover { background: var(--red-dim); }
 .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
@@ -532,7 +540,7 @@ input[type="range"]::-webkit-slider-thumb {
   font-weight: 500;
 }
 .form-input {
-  width: 100%; padding: 10px 12px;
+  width: 100%; padding: 8px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -666,9 +674,10 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
 /* ── Responsive ── */
 @media (min-width: 768px) {
