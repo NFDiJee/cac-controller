@@ -515,6 +515,7 @@ async function loadLibrary() {
     applyLibraryFilters();
     updateCDSelect();
     updatePlayerUI();
+    loadRatingsFavsCache(); // Pre-fill cache in background
   } catch (err) { console.error('Library load failed:', err); }
 }
 
@@ -635,15 +636,23 @@ function updateCDSelect() {
 
 let _cdModalSlot = null;
 
+let _ratingsCache = null, _favsCache = null;
+
+async function loadRatingsFavsCache() {
+  if (!_ratingsCache) try { _ratingsCache = await api('/ratings'); } catch { _ratingsCache = []; }
+  if (!_favsCache) try { _favsCache = await api('/favorites'); } catch { _favsCache = []; }
+}
+
+function invalidateRatingsFavsCache() { _ratingsCache = null; _favsCache = null; }
+
 async function showCDDetail(slot) {
   try {
-    const cd = await api(`/library/${slot}`);
+    // Parallel: CD data + ratings/favs cache
+    const [cd] = await Promise.all([api(`/library/${slot}`), loadRatingsFavsCache()]);
     _cdModalSlot = slot;
 
-    // Load ratings and favorites for this CD
-    let ratings = [], favs = [];
-    try { ratings = await api('/ratings'); } catch {}
-    try { favs = await api('/favorites'); } catch {}
+    const ratings = _ratingsCache || [];
+    const favs = _favsCache || [];
 
     const cdRating = (ratings.find(r => r.slot === slot && r.track_number === 0) || {}).rating || 0;
     const cdFav = favs.some(f => f.slot === slot && (f.track_number || 0) === 0);
@@ -714,6 +723,7 @@ async function rateCdModal(slot, rating) {
     const current = await api(`/ratings/${slot}/0`);
     const newRating = current.rating === rating ? 0 : rating;
     await api('/ratings', 'POST', { slot, track: 0, rating: newRating });
+    invalidateRatingsFavsCache();
     document.getElementById('cdModalStars').innerHTML = cdModalStarsHtml(slot, newRating);
   } catch (err) { toast(err.message, 'error'); }
 }
@@ -723,6 +733,7 @@ async function rateCdModalTrack(slot, trackNumber, rating) {
     const current = await api(`/ratings/${slot}/${trackNumber}`);
     const newRating = current.rating === rating ? 0 : rating;
     await api('/ratings', 'POST', { slot, track: trackNumber, rating: newRating });
+    invalidateRatingsFavsCache();
     const el = document.getElementById(`cdmStars-${trackNumber}`);
     if (el) el.innerHTML = cdModalTrackStarsHtml(slot, trackNumber, newRating);
   } catch (err) { toast(err.message, 'error'); }
@@ -730,6 +741,7 @@ async function rateCdModalTrack(slot, trackNumber, rating) {
 
 async function toggleCdModalFav(slot) {
   try {
+    invalidateRatingsFavsCache();
     const result = await api('/favorites/toggle', 'POST', { slot, track: 0 });
     const btn = document.getElementById('cdModalFav');
     if (btn) {
@@ -741,6 +753,7 @@ async function toggleCdModalFav(slot) {
 
 async function toggleCdModalTrackFav(slot, trackNumber) {
   try {
+    invalidateRatingsFavsCache();
     const result = await api('/favorites/toggle', 'POST', { slot, track: trackNumber });
     const btn = document.getElementById(`cdmFav-${trackNumber}`);
     if (btn) {
