@@ -2129,14 +2129,25 @@ async function clearHistory() {
   catch (err) { toast(err.message, 'error'); }
 }
 
+let _favFilter = 'all';
+
 async function loadFavoritesPage() {
-  renderFavorites(document.getElementById('favoritesPageList'));
+  renderFavorites(document.getElementById('favoritesPageList'), _favFilter);
 }
 
-async function renderFavorites(container) {
+function filterFavorites(filter, btn) {
+  _favFilter = filter;
+  document.querySelectorAll('#favFilterBar .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  loadFavoritesPage();
+}
+
+async function renderFavorites(container, filter) {
   if (!container) return;
   try {
-    const favs = await api('/favorites');
+    let favs = await api('/favorites');
+    if (filter === 'cds') favs = favs.filter(f => !f.track_number || f.track_number === 0);
+    else if (filter === 'tracks') favs = favs.filter(f => f.track_number > 0);
     if (favs.length === 0) { container.innerHTML = `<div class="empty-state"><p>${t('favorites.empty')}</p></div>`; return; }
     container.innerHTML = favs.map(f => {
       const isTrack = f.track_number > 0;

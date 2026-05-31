@@ -306,6 +306,9 @@ const translations = {
     'favorites.empty': 'Keine Favoriten',
     'favorites.added': 'Favorit hinzugefuegt',
     'favorites.removed': 'Favorit entfernt',
+    'favorites.all': 'Alle',
+    'favorites.cds': 'CD Favoriten',
+    'favorites.tracks': 'Track Favoriten',
     'favorites.addToPlaylist': 'Zur Playlist hinzufuegen',
 
     // Ratings
@@ -720,6 +723,9 @@ const translations = {
     'favorites.empty': 'No favorites',
     'favorites.added': 'Favorite added',
     'favorites.removed': 'Favorite removed',
+    'favorites.all': 'All',
+    'favorites.cds': 'CD Favorites',
+    'favorites.tracks': 'Track Favorites',
     'favorites.addToPlaylist': 'Add to playlist',
 
     // Ratings

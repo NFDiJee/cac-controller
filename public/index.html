@@ -198,6 +198,11 @@
   <!-- SCANNER PAGE -->
   <div class="page" id="page-favorites">
     <div class="page-title" data-i18n="more.favorites">Favoriten</div>
+    <div class="tab-bar" id="favFilterBar">
+      <button class="tab active" onclick="filterFavorites('all', this)" data-i18n="favorites.all">Alle</button>
+      <button class="tab" onclick="filterFavorites('cds', this)" data-i18n="favorites.cds">CD Favoriten</button>
+      <button class="tab" onclick="filterFavorites('tracks', this)" data-i18n="favorites.tracks">Track Favoriten</button>
+    </div>
     <div id="favoritesPageList"></div>
   </div>
 
