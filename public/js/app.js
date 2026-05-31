@@ -632,40 +632,226 @@ function updateCDSelect() {
   if (cur) sel.value = cur;
 }
 
+let _cdModalSlot = null;
+
 async function showCDDetail(slot) {
   try {
     const cd = await api(`/library/${slot}`);
+    _cdModalSlot = slot;
+
+    // Load ratings and favorites for this CD
+    let ratings = [], favs = [];
+    try { ratings = await api('/ratings'); } catch {}
+    try { favs = await api('/favorites'); } catch {}
+
+    const cdRating = (ratings.find(r => r.slot === slot && r.track_number === 0) || {}).rating || 0;
+    const cdFav = favs.some(f => f.slot === slot && (f.track_number || 0) === 0);
+
     document.getElementById('modalTitle').textContent = cd.title || `CD ${slot}`;
     document.getElementById('modalContent').innerHTML = `
-      <div style="text-align:center;margin-bottom:16px">
-        ${cd.cover_url ? `<img src="${escHtml(cd.cover_url)}" style="width:180px;height:180px;border-radius:8px;object-fit:cover" alt="">` : ''}
-      </div>
-      <div style="margin-bottom:12px">
-        <div style="font-size:1.1rem;font-weight:700">${escHtml(cd.title||t('library.unknown'))}</div>
-        <div style="color:var(--text-dim)">${escHtml(cd.artist||'')}</div>
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">
-          Slot ${cd.slot} | ${((cd.year||'').match(/(\d{4})/)||[])[1]||''} | ${cd.total_tracks} ${t('library.tracks')} | ${formatDuration(cd.total_duration_seconds)}
-          ${cd.label ? ' | '+escHtml(cd.label) : ''}
-        </div>
-      </div>
-      <div class="btn-group" style="margin-bottom:12px">
-        <button class="btn btn-primary btn-sm" onclick="loadAndPlayCD(${cd.slot})">${t('library.play')}</button>
-        <button class="btn btn-sm" onclick="showEditCD(${cd.slot})">${t('library.edit')}</button>
-        <button class="btn btn-sm" onclick="showEditCD(${cd.slot});setTimeout(()=>document.getElementById('coverFileInput')?.click(),100)">&#128247; Cover</button>
-        <button class="btn btn-sm" onclick="toggleFavCD(${cd.slot})">&#9825; ${t('player.favorite')}</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteCD(${cd.slot})">${t('library.delete')}</button>
-      </div>
-      ${cd.tracks?.length > 0 ? `<ul class="track-list">${cd.tracks.map(tr => `
-        <li class="track-item" onclick="loadAndPlayTrack(${cd.slot},${tr.track_number})">
-          <span class="track-num">${tr.track_number}</span>
-          <div class="track-info">
-            <div class="track-title">${escHtml(tr.title||`Track ${tr.track_number}`)}</div>
-            ${tr.artist?`<div class="track-artist">${escHtml(tr.artist)}</div>`:''}
+      <div class="cd-detail-row">
+        ${cd.cover_url ? `<img class="cd-detail-cover" src="${escHtml(cd.cover_url)}" alt="">` : ''}
+        <div class="cd-detail-meta">
+          <div><strong>${escHtml(cd.artist || '')}</strong></div>
+          <div style="font-size:0.82rem;color:var(--text-dim)">
+            Slot ${cd.slot}${((cd.year||'').match(/(\d{4})/)||[])[1] ? ' · '+((cd.year||'').match(/(\d{4})/)||[])[1] : ''} · ${cd.total_tracks} ${t('library.tracks')} · ${formatDuration(cd.total_duration_seconds)}
+            ${cd.genre ? ' · '+escHtml(cd.genre) : ''}${cd.label ? ' · '+escHtml(cd.label) : ''}
           </div>
-          <span class="track-duration">${formatDuration(tr.duration_seconds)}</span>
-        </li>`).join('')}</ul>` : ''}
+        </div>
+        <button class="btn btn-dim btn-sm" onclick="showEditCD(${cd.slot})">${t('library.edit')}</button>
+      </div>
+
+      <div class="cd-modal-rating-row">
+        <div class="star-rating" id="cdModalStars">${cdModalStarsHtml(slot, cdRating)}</div>
+        <button class="btn-icon btn-fav${cdFav ? ' active' : ''}" id="cdModalFav" onclick="toggleCdModalFav(${slot})">${cdFav ? '&#9829;' : '&#9825;'}</button>
+      </div>
+
+      ${cd.tracks?.length > 0 ? `<div class="cd-detail-tracks">${cd.tracks.map(tr => {
+        const trRating = (ratings.find(r => r.slot === slot && r.track_number === tr.track_number) || {}).rating || 0;
+        const trFav = favs.some(f => f.slot === slot && f.track_number === tr.track_number);
+        return `
+        <div class="track-row" onclick="loadCdModalTrack(${slot},${tr.track_number})">
+          <span class="track-num">${tr.track_number}</span>
+          <span class="track-name">${escHtml(tr.title||'Track '+tr.track_number)}</span>
+          <span class="track-stars-sm" id="cdmStars-${tr.track_number}">${cdModalTrackStarsHtml(slot, tr.track_number, trRating)}</span>
+          <button class="btn-icon btn-fav-sm${trFav ? ' active' : ''}" id="cdmFav-${tr.track_number}" onclick="event.stopPropagation();toggleCdModalTrackFav(${slot},${tr.track_number})">
+            ${trFav ? '&#9829;' : '&#9825;'}
+          </button>
+          <button class="btn-icon btn-playlist-sm" onclick="event.stopPropagation();showPlaylistPickerForTrack(${slot},${tr.track_number})" title="${t('library.addToPlaylist')}">+</button>
+          <span class="track-dur">${formatDuration(tr.duration_seconds)}</span>
+        </div>`;
+      }).join('')}</div>` : ''}
+
+      <div class="cd-detail-actions">
+        <button class="btn btn-accent" onclick="loadCdFromModal(1)">${t('library.loadP1')}</button>
+        <button class="btn btn-accent" onclick="loadCdFromModal(2)">${t('library.loadP2')}</button>
+        <button class="btn btn-dim" onclick="showCdModalPlaylistMenu(${slot})">${t('library.addToPlaylist')}</button>
+      </div>
+
+      <div id="cdModalPlaylistMenu" class="playlist-add-menu" style="display:none"></div>
     `;
     document.getElementById('cdDetailModal').classList.add('active');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function cdModalStarsHtml(slot, rating) {
+  return Array.from({length: 5}, (_, i) => {
+    const filled = i < rating;
+    return `<span class="${filled ? 'active' : ''}" onclick="event.stopPropagation();rateCdModal(${slot},${i+1})">${filled ? '&#9733;' : '&#9734;'}</span>`;
+  }).join('');
+}
+
+function cdModalTrackStarsHtml(slot, trackNumber, rating) {
+  return Array.from({length: 5}, (_, i) => {
+    const filled = i < rating;
+    return `<span class="${filled ? 'active' : ''}" onclick="event.stopPropagation();rateCdModalTrack(${slot},${trackNumber},${i+1})">${filled ? '&#9733;' : '&#9734;'}</span>`;
+  }).join('');
+}
+
+async function rateCdModal(slot, rating) {
+  try {
+    const current = await api(`/ratings/${slot}/0`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot, track: 0, rating: newRating });
+    document.getElementById('cdModalStars').innerHTML = cdModalStarsHtml(slot, newRating);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function rateCdModalTrack(slot, trackNumber, rating) {
+  try {
+    const current = await api(`/ratings/${slot}/${trackNumber}`);
+    const newRating = current.rating === rating ? 0 : rating;
+    await api('/ratings', 'POST', { slot, track: trackNumber, rating: newRating });
+    const el = document.getElementById(`cdmStars-${trackNumber}`);
+    if (el) el.innerHTML = cdModalTrackStarsHtml(slot, trackNumber, newRating);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function toggleCdModalFav(slot) {
+  try {
+    const result = await api('/favorites/toggle', 'POST', { slot, track: 0 });
+    const btn = document.getElementById('cdModalFav');
+    if (btn) {
+      btn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+      btn.classList.toggle('active', result.favorite);
+    }
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function toggleCdModalTrackFav(slot, trackNumber) {
+  try {
+    const result = await api('/favorites/toggle', 'POST', { slot, track: trackNumber });
+    const btn = document.getElementById(`cdmFav-${trackNumber}`);
+    if (btn) {
+      btn.innerHTML = result.favorite ? '&#9829;' : '&#9825;';
+      btn.classList.toggle('active', result.favorite);
+    }
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function loadCdFromModal(playerId) {
+  if (!_cdModalSlot) return;
+  closeModal('cdDetailModal');
+  api(`/player/${playerId}/load`, 'POST', { disc: _cdModalSlot, track: 1 })
+    .then(() => { toast(`CD ${_cdModalSlot} → ${t('player.player'+playerId)}`); showPageDirect('player'); })
+    .catch(err => toast(err.message, 'error'));
+}
+
+function loadCdModalTrack(slot, track) {
+  closeModal('cdDetailModal');
+  api(`/player/${activePlayer}/load`, 'POST', { disc: slot, track })
+    .then(() => { toast(`CD ${slot}, Track ${track} ${t('player.loading')}`); showPageDirect('player'); })
+    .catch(err => toast(err.message, 'error'));
+}
+
+async function showCdModalPlaylistMenu(slot) {
+  try {
+    const playlists = await api('/playlists');
+    const menu = document.getElementById('cdModalPlaylistMenu');
+    menu.innerHTML = `
+      <div class="playlist-add-header">
+        <span>${t('playlists.addTo')}</span>
+        <button class="modal-close" onclick="document.getElementById('cdModalPlaylistMenu').style.display='none'">&times;</button>
+      </div>
+      <div class="playlist-add-list">
+        ${playlists.length === 0
+          ? `<div style="color:var(--text-dim);padding:8px;font-size:0.85rem">${t('playlists.empty')}</div>`
+          : playlists.map(pl => `
+            <div class="playlist-pick-item" onclick="addCdToModalPlaylist(${pl.id},${slot})">
+              <span>${escHtml(pl.name)}</span>
+              <span class="playlist-count">${pl.item_count || 0}</span>
+            </div>`).join('')}
+      </div>
+      <div class="playlist-add-new">
+        <input type="text" id="cdModalNewPlaylistName" class="form-input" placeholder="${t('library.newPlaylistName')}">
+        <button class="btn btn-accent btn-sm" onclick="createAndAddCdToPlaylist(${slot})">${t('playlists.createBtn')}</button>
+      </div>
+    `;
+    menu.style.display = 'block';
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function addCdToModalPlaylist(playlistId, slot) {
+  try {
+    const cd = await api(`/library/${slot}`);
+    const tracks = cd.tracks || [];
+    if (tracks.length > 0) {
+      for (const tr of tracks) {
+        await api(`/playlists/${playlistId}/items`, 'POST', { slot, track: tr.track_number });
+      }
+    } else {
+      await api(`/playlists/${playlistId}/items`, 'POST', { slot, track: 0 });
+    }
+    toast(t('playlists.added'));
+    document.getElementById('cdModalPlaylistMenu').style.display = 'none';
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function createAndAddCdToPlaylist(slot) {
+  const input = document.getElementById('cdModalNewPlaylistName');
+  const name = input.value.trim();
+  if (!name) return;
+  try {
+    const pl = await api('/playlists', 'POST', { name });
+    input.value = '';
+    await addCdToModalPlaylist(pl.id, slot);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function showPlaylistPickerForTrack(slot, trackNumber) {
+  try {
+    const playlists = await api('/playlists');
+    document.getElementById('modalTitle').textContent = t('playlists.addTo');
+    document.getElementById('modalContent').innerHTML = `
+      ${playlists.map(pl => `
+        <div class="playlist-pick-item" onclick="addTrackToPickedPlaylist(${pl.id},${slot},${trackNumber})">
+          <span>${escHtml(pl.name)}</span>
+          <span class="playlist-count">${pl.item_count || 0}</span>
+        </div>`).join('')}
+      <div class="playlist-add-new" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <input type="text" id="pickerNewPl" class="form-input" placeholder="${t('library.newPlaylistName')}">
+        <button class="btn btn-accent btn-sm" onclick="createAndAddTrackToPlaylist(${slot},${trackNumber})">${t('playlists.createBtn')}</button>
+      </div>
+    `;
+    document.getElementById('cdDetailModal').classList.add('active');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function addTrackToPickedPlaylist(playlistId, slot, trackNumber) {
+  try {
+    await api(`/playlists/${playlistId}/items`, 'POST', { slot, track: trackNumber });
+    toast(t('playlists.added'));
+    showCDDetail(slot); // Return to CD detail
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function createAndAddTrackToPlaylist(slot, trackNumber) {
+  const input = document.getElementById('pickerNewPl');
+  const name = input.value.trim();
+  if (!name) return;
+  try {
+    const pl = await api('/playlists', 'POST', { name });
+    await addTrackToPickedPlaylist(pl.id, slot, trackNumber);
   } catch (err) { toast(err.message, 'error'); }
 }
 

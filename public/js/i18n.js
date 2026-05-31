@@ -91,6 +91,10 @@ const translations = {
     'library.sortYearAsc': 'Jahr (alt\u2192neu)',
     'library.sortGenre': 'Genre A-Z',
     'library.resetFilter': 'Filter zuruecksetzen',
+    'library.loadP1': 'Player 1 laden',
+    'library.loadP2': 'Player 2 laden',
+    'library.addToPlaylist': '+ Playlist',
+    'library.newPlaylistName': 'Neue Playlist...',
 
     // Edit CD
     'edit.title': 'CD bearbeiten',
@@ -500,6 +504,10 @@ const translations = {
     'library.sortYearAsc': 'Year (old\u2192new)',
     'library.sortGenre': 'Genre A-Z',
     'library.resetFilter': 'Reset filters',
+    'library.loadP1': 'Load Player 1',
+    'library.loadP2': 'Load Player 2',
+    'library.addToPlaylist': '+ Playlist',
+    'library.newPlaylistName': 'New playlist...',
 
     // Edit CD
     'edit.title': 'Edit CD',
