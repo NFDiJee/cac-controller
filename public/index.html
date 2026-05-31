@@ -55,6 +55,12 @@
       <button class="btn btn-sm btn-danger" onclick="stopPlaylist()" data-i18n="playlists.end">Beenden</button>
     </div>
 
+    <div class="power-row" id="powerRow" style="display:none">
+      <button class="btn-power" id="btnPower" onclick="togglePower()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M12 2v10"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg>
+      </button>
+    </div>
+
     <div class="controls">
       <button class="ctrl-btn" onclick="playerAction('scan-reverse')" data-i18n-title="tip.scanReverse">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20L9 12l10-8v16z"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
@@ -409,6 +415,12 @@
           <div class="form-group">
             <label class="form-label" data-i18n="settings.statsMinSeconds">Min. Spieldauer fuer Statistik (Sek.)</label>
             <input type="number" class="form-input" id="settStatsMinSeconds" value="30" min="0" max="300" style="width:100px">
+          </div>
+          <div class="card-title" style="margin-top:16px;margin-bottom:8px" data-i18n="settings.gpioTitle">GPIO / Relais</div>
+          <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:10px" data-i18n="settings.gpioHint">GPIO-Pin fuer das Relais zum Ein-/Ausschalten des CAC. Leer lassen = deaktiviert. Standard: 17.</p>
+          <div class="form-group">
+            <label class="form-label" data-i18n="settings.gpioPin">GPIO-Pin (BCM)</label>
+            <input type="number" class="form-input" id="settGpioPin" value="" min="0" max="27" style="width:100px" placeholder="z.B. 17">
           </div>
           <div class="card-title" style="margin-top:16px;margin-bottom:8px">MusicBrainz API</div>
           <p style="font-size:0.72rem;color:var(--yellow);margin-bottom:10px" data-i18n="settings.mbHint">MusicBrainz erfordert eine Identifikation. Trage hier deinen App-Namen und eine Kontakt-E-Mail ein. Infos: musicbrainz.org/doc/MusicBrainz_API</p>

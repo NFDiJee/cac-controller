@@ -28,6 +28,7 @@ let _selectedSlots = new Set();
   connectWebSocket();
   loadLibrary();
   loadPlayModes();
+  checkPowerStatus();
 
   // Set language selector to stored preference
   const langSel = document.getElementById('settLanguage');
@@ -2436,6 +2437,7 @@ async function loadSettings() {
     document.getElementById('settNodeRoom').value = settings.node_room || '';
     document.getElementById('settNodeApiKey').value = settings.node_api_key || '';
     document.getElementById('settStatsMinSeconds').value = settings.stats_min_seconds || '30';
+    document.getElementById('settGpioPin').value = settings.gpio_relay_pin || '';
     document.getElementById('settLanguage').value = getStoredLanguagePref();
   } catch (err) { console.error(err); }
 }
@@ -2455,6 +2457,7 @@ async function saveSettings() {
       node_room: document.getElementById('settNodeRoom').value,
       node_api_key: document.getElementById('settNodeApiKey').value,
       stats_min_seconds: document.getElementById('settStatsMinSeconds').value,
+      gpio_relay_pin: document.getElementById('settGpioPin').value,
       language: document.getElementById('settLanguage').value,
     });
     toast(t('settings.saved'), 'success');
@@ -2466,6 +2469,41 @@ function generateApiKey() {
   let key = '';
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('settNodeApiKey').value = key;
+}
+
+// ── Power (GPIO Relay) ──
+let _powerOn = false;
+
+async function checkPowerStatus() {
+  try {
+    const status = await api('/power/status');
+    if (!status.configured) {
+      document.getElementById('powerRow').style.display = 'none';
+      return;
+    }
+    _powerOn = status.on;
+    updatePowerUI();
+    document.getElementById('powerRow').style.display = '';
+  } catch {
+    document.getElementById('powerRow').style.display = 'none';
+  }
+}
+
+function updatePowerUI() {
+  const btn = document.getElementById('btnPower');
+  btn.classList.toggle('on', _powerOn);
+  btn.title = _powerOn ? t('power.off') : t('power.on');
+}
+
+async function togglePower() {
+  try {
+    const endpoint = _powerOn ? '/power/off' : '/power/on';
+    const result = await api(endpoint, 'POST');
+    _powerOn = result.on;
+    updatePowerUI();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 // ── Backup ──

@@ -8,6 +8,7 @@ import { PlayerManager } from './src/player.js';
 import { CDScanner } from './src/scanner.js';
 import { WebSocketManager } from './src/websocket.js';
 import { createRoutes } from './src/routes.js';
+import { initGpio, cleanupGpio } from './src/gpio.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,8 @@ const wsManager = new WebSocketManager(server, playerManager, scanner);
 async function start() {
   const port = parseInt(settings.web_port) || 3000;
 
+  await initGpio();
+
   server.listen(port, '0.0.0.0', () => {
     console.log(`[Server] CAC Controller running on http://0.0.0.0:${port}`);
     console.log(`[Server] Model: ${settings.model}`);
@@ -93,12 +96,14 @@ async function start() {
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
   playerManager.stopPolling();
+  cleanupGpio();
   serial.disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   playerManager.stopPolling();
+  cleanupGpio();
   serial.disconnect();
   process.exit(0);
 });

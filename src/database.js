@@ -138,6 +138,7 @@ function createTables() {
     node_room: '',
     node_api_key: '',
     stats_min_seconds: '30',
+    gpio_relay_pin: '',
   };
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');

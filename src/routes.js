@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import AdmZip from 'adm-zip';
 import * as db from './database.js';
 import * as mb from './musicbrainz.js';
+import { powerOn, powerOff, getPowerStatus } from './gpio.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const COVERS_DIR = join(__dirname, '..', 'public', 'covers');
@@ -702,6 +703,30 @@ export function createRoutes(playerManager, scanner, serial) {
           res.status(500).json({ error: err.message });
         }
       });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Power (GPIO Relay) ──
+
+  router.get('/api/power/status', (req, res) => {
+    res.json(getPowerStatus());
+  });
+
+  router.post('/api/power/on', (req, res) => {
+    try {
+      powerOn();
+      res.json({ ok: true, on: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/power/off', (req, res) => {
+    try {
+      powerOff();
+      res.json({ ok: true, on: false });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
