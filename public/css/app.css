@@ -1,34 +1,36 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0a0a0f;
-  --bg-card: #12121a;
-  --bg-card-hover: #1a1a28;
-  --bg-input: #1e1e2e;
-  --bg-modal: rgba(0,0,0,0.85);
-  --border: #2a2a3e;
-  --border-light: #3a3a52;
-  --text: #e8e8f0;
-  --text-dim: #8888a0;
-  --text-muted: #555570;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-dim: rgba(99,102,241,0.15);
-  --green: #22c55e;
-  --green-dim: rgba(34,197,94,0.15);
-  --red: #ef4444;
-  --red-dim: rgba(239,68,68,0.15);
+  --bg: #0f0f23;
+  --bg-card: #1a1a2e;
+  --bg-card-hover: #22223a;
+  --bg-input: #16213e;
+  --bg-modal: rgba(0,0,0,0.7);
+  --border: #2a2a4a;
+  --border-light: #3a3a5a;
+  --text: #e0e0e0;
+  --text-dim: #8a8a9a;
+  --text-muted: #6a6a7a;
+  --accent: #4fc3f7;
+  --accent-hover: #29b6f6;
+  --accent-dim: rgba(79,195,247,0.15);
+  --green: #81c784;
+  --green-dim: rgba(129,199,132,0.15);
+  --red: #ef5350;
+  --red-dim: rgba(239,83,80,0.15);
   --yellow: #f0ad4e;
   --yellow-dim: rgba(240,173,78,0.15);
-  --orange: #f59e0b;
-  --orange-dim: rgba(245,158,11,0.15);
+  --orange: #ffb74d;
+  --orange-dim: rgba(255,183,77,0.15);
+  --gold: #ffd700;
+  --heart: #ef5350;
   --cyan: #06b6d4;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
   --transition: 0.2s ease;
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
 }
 
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
@@ -91,7 +93,7 @@ body {
 
 /* ── Now Playing ── */
 .now-playing {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-input) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px 16px;
@@ -157,11 +159,11 @@ body {
   cursor: pointer; font-size: 1.2rem; color: var(--text-muted);
   transition: color var(--transition);
 }
-.star-rating span:hover, .star-rating span.active { color: #f5a623; }
+.star-rating span:hover, .star-rating span.active { color: var(--gold); }
 .star-rating-sm { gap: 1px; flex-shrink: 0; }
 .star-rating-sm span { font-size: 0.85rem; }
 .stars-display {
-  color: #f5a623; font-size: 0.85rem; flex-shrink: 0; white-space: nowrap;
+  color: var(--gold); font-size: 0.85rem; flex-shrink: 0; white-space: nowrap;
 }
 .now-playing .status-badge {
   display: inline-block;
@@ -323,7 +325,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   transition: all var(--transition);
 }
-.btn-remove-item:hover { background: rgba(239,68,68,0.15); color: var(--red); border-color: var(--red); }
+.btn-remove-item:hover { background: var(--red-dim); color: var(--red); border-color: var(--red); }
 
 /* ── CD Library Grid ── */
 .cd-grid {
@@ -375,11 +377,11 @@ body {
   z-index: 1;
 }
 .cd-card.selected {
-  border-color: var(--primary);
-  background: rgba(99,102,241,0.08);
+  border-color: var(--accent);
+  background: rgba(79,195,247,0.08);
 }
 .cd-card.selected .cd-select-check {
-  color: var(--primary);
+  color: var(--accent);
 }
 .library-toolbar {
   display: flex;
@@ -803,7 +805,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.import-table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.03)); }
+.import-table tr:hover { background: var(--bg-card-hover); }
 .import-table tr.import-row-error { background: rgba(255,0,0,0.08); }
 .import-table tr.import-row-warning { background: rgba(255,180,0,0.08); }
 .import-table td[contenteditable] {
@@ -813,7 +815,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 }
 .import-table td[contenteditable]:focus {
   background: var(--bg-input);
-  box-shadow: 0 0 0 1px var(--primary);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 .import-badge {
   display: inline-block;
@@ -999,7 +1001,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: var(--text);
 }
 .stats-table tr:hover td {
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(79, 195, 247, 0.08);
 }
 .genre-bar-row {
   display: flex;
@@ -1069,7 +1071,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 .fav-artist { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fav-slot { font-size: 0.72rem; color: var(--accent); }
 .rating-display {
-  color: var(--yellow);
+  color: var(--gold);
   font-size: 0.95rem;
   white-space: nowrap;
   margin-left: auto;

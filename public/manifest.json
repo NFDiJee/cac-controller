@@ -4,8 +4,8 @@
   "description": "Pioneer CAC-V3000 CD Autochanger Controller",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0f",
-  "theme_color": "#0a0a0f",
+  "background_color": "#0f0f23",
+  "theme_color": "#0f0f23",
   "orientation": "any",
   "icons": []
 }
