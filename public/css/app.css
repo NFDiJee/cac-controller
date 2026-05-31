@@ -117,17 +117,16 @@ body {
   color: var(--text-muted); font-size: 3rem;
 }
 .now-playing .title {
-  font-size: 1.1rem; font-weight: 700;
+  font-size: 1.05rem; font-weight: 600;
   margin-bottom: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .now-playing .artist {
-  font-size: 0.85rem; color: var(--text-dim);
+  font-size: 0.9rem; color: var(--text-dim);
   margin-bottom: 4px;
 }
 .now-playing .info {
-  font-size: 0.75rem; color: var(--text-muted);
-  font-family: var(--font-mono);
+  font-size: 0.8rem; color: var(--accent);
 }
 .now-playing .time {
   font-size: 1.8rem; font-weight: 700;
