@@ -440,6 +440,13 @@
             <button class="btn btn-sm" onclick="document.getElementById('backupFileInput').click()" data-i18n="backup.import">Import</button>
             <input type="file" id="backupFileInput" accept=".json" style="display:none" onchange="importBackup(this)">
           </div>
+          <div class="card-title" style="margin-top:16px;margin-bottom:8px;font-size:0.85rem" data-i18n="backup.coversTitle">Cover-Bilder</div>
+          <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:10px" data-i18n="backup.coversHint">Exportiere alle Cover-Bilder als ZIP-Datei oder importiere eine zuvor exportierte ZIP-Datei.</p>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" onclick="exportCovers()" data-i18n="backup.coversExport">Cover Export</button>
+            <button class="btn btn-sm" onclick="document.getElementById('coversFileInput').click()" data-i18n="backup.coversImport">Cover Import</button>
+            <input type="file" id="coversFileInput" accept=".zip" style="display:none" onchange="importCovers(this)">
+          </div>
         </div>
       </div>
 

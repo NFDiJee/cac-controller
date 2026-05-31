@@ -2263,6 +2263,45 @@ async function importBackup(fileInput) {
   fileInput.value = '';
 }
 
+// ── Cover Backup ──
+async function exportCovers() {
+  try {
+    const resp = await fetch('/api/backup/covers');
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      toast(err.error || t('backup.coversNone'), 'error');
+      return;
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cac-covers-${new Date().toISOString().slice(0, 10)}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(t('backup.coversExportDone'), 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function importCovers(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (!confirm(t('backup.coversImportConfirm'))) { fileInput.value = ''; return; }
+  try {
+    const resp = await fetch('/api/backup/covers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/zip' },
+      body: file
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    toast(t('backup.coversImportDone', data.imported), 'success');
+  } catch (err) {
+    toast(t('backup.importError') + ': ' + err.message, 'error');
+  }
+  fileInput.value = '';
+}
+
 // ── Terminal ──
 function appendTerminal(text) {
   const el = document.getElementById('termOutput');

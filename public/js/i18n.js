@@ -358,6 +358,14 @@ const translations = {
     'backup.importDone': 'Backup importiert! Seite wird neu geladen...',
     'backup.importConfirm': 'Backup wirklich importieren? Alle aktuellen Daten werden ueberschrieben.',
     'backup.importError': 'Fehler beim Importieren',
+    'backup.coversTitle': 'Cover-Bilder',
+    'backup.coversHint': 'Exportiere alle Cover-Bilder als ZIP-Datei oder importiere eine zuvor exportierte ZIP-Datei.',
+    'backup.coversExport': 'Cover Export',
+    'backup.coversImport': 'Cover Import',
+    'backup.coversExportDone': 'Cover-Bilder exportiert',
+    'backup.coversNone': 'Keine Cover-Bilder vorhanden',
+    'backup.coversImportConfirm': 'Cover-Bilder importieren? Vorhandene Dateien werden ueberschrieben.',
+    'backup.coversImportDone': '{0} Cover-Bilder importiert',
 
     // Settings
     'settings.serialPort': 'Serieller Port',
@@ -760,6 +768,14 @@ const translations = {
     'backup.importDone': 'Backup imported! Page will reload...',
     'backup.importConfirm': 'Really import backup? All current data will be overwritten.',
     'backup.importError': 'Error importing backup',
+    'backup.coversTitle': 'Cover Images',
+    'backup.coversHint': 'Export all cover images as ZIP file or import a previously exported ZIP file.',
+    'backup.coversExport': 'Cover Export',
+    'backup.coversImport': 'Cover Import',
+    'backup.coversExportDone': 'Cover images exported',
+    'backup.coversNone': 'No cover images found',
+    'backup.coversImportConfirm': 'Import cover images? Existing files will be overwritten.',
+    'backup.coversImportDone': '{0} cover images imported',
 
     // Settings
     'settings.serialPort': 'Serial Port',

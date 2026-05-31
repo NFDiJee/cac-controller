@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { execSync } from 'child_process';
-import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync, readdirSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import AdmZip from 'adm-zip';
 import * as db from './database.js';
 import * as mb from './musicbrainz.js';
 
@@ -646,6 +647,61 @@ export function createRoutes(playerManager, scanner, serial) {
     try {
       db.importBackup(req.body);
       res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Cover Backup (ZIP) ──
+
+  router.get('/api/backup/covers', (req, res) => {
+    try {
+      if (!existsSync(COVERS_DIR)) {
+        return res.status(404).json({ error: 'No covers directory' });
+      }
+      const files = readdirSync(COVERS_DIR).filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+      if (files.length === 0) {
+        return res.status(404).json({ error: 'No cover files found' });
+      }
+      const zip = new AdmZip();
+      for (const f of files) {
+        zip.addLocalFile(join(COVERS_DIR, f));
+      }
+      const buffer = zip.toBuffer();
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="cac-covers-${new Date().toISOString().slice(0, 10)}.zip"`,
+        'Content-Length': buffer.length
+      });
+      res.send(buffer);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/backup/covers', (req, res) => {
+    try {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+          const zip = new AdmZip(buffer);
+          if (!existsSync(COVERS_DIR)) mkdirSync(COVERS_DIR, { recursive: true });
+          const entries = zip.getEntries();
+          let imported = 0;
+          for (const entry of entries) {
+            if (entry.isDirectory) continue;
+            const name = entry.entryName.replace(/^.*\//, '');
+            if (!/\.(jpg|jpeg|png|webp)$/i.test(name)) continue;
+            writeFileSync(join(COVERS_DIR, name), entry.getData());
+            imported++;
+          }
+          res.json({ ok: true, imported });
+        } catch (err) {
+          res.status(500).json({ error: err.message });
+        }
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
