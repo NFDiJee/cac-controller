@@ -211,6 +211,7 @@ cac-controller/
 │   ├── scanner.js            # CD scanner (TOC read, slot scanning)
 │   ├── musicbrainz.js        # MusicBrainz API and Cover Art Archive
 │   ├── database.js           # SQLite database (schema, CRUD operations)
+│   ├── gpio.js               # GPIO relay control (power on/off via pinctrl)
 │   ├── routes.js             # REST API routes
 │   └── websocket.js          # WebSocket manager (broadcasts)
 ├── public/
@@ -240,7 +241,7 @@ Initializes all components in the correct order:
 6. Start WebSocket server
 7. Open serial connection and start polling
 
-Graceful shutdown via SIGINT/SIGTERM: stop polling, close serial connection.
+Graceful shutdown via SIGINT/SIGTERM: stop polling, cleanup GPIO, close serial connection.
 
 #### protocol.js — Pioneer Protocol
 
@@ -409,6 +410,16 @@ settings (key TEXT PRIMARY KEY, value TEXT)
 
 The `duration_played` column in `play_history` stores the actual play duration in seconds. The `stats_min_seconds` threshold (default: 30) determines the minimum duration for a track to count in statistics.
 
+#### gpio.js — GPIO Relay Control
+
+Controls a relay via a configurable GPIO pin to power the CAC unit on/off:
+
+- Uses `pinctrl` (pre-installed on every Raspberry Pi OS) — no additional npm packages required
+- GPIO pin is configured in settings (`gpio_relay_pin`). Empty = disabled
+- Active HIGH: `pinctrl set <pin> dh` = relay ON, `pinctrl set <pin> dl` = relay OFF
+- Power button only appears in the UI when a pin is configured
+- On shutdown, the pin is set to LOW (relay OFF)
+
 #### routes.js — REST API
 
 Defines all HTTP endpoints:
@@ -421,6 +432,7 @@ Defines all HTTP endpoints:
 - **MusicBrainz** (3 endpoints): Search, release details, apply metadata
 - **Scanner** (4 endpoints): Start scan, scan all, abort, progress
 - **Playlists** (10 endpoints): CRUD, add/remove items, reorder, play
+- **Power/GPIO** (3 endpoints): `GET /api/power/status`, `POST /api/power/on`, `POST /api/power/off` — relay control via configurable GPIO pin (uses `pinctrl`)
 - **Favorites, Ratings, History, Search, Statistics, Settings, Play Modes**
 - **Statistics** (2 endpoints): `GET /api/stats` (top tracks with covers, top CDs, top artists, genre distribution, activity chart), `DELETE /api/stats/reset` (reset play history). Respects the configurable `stats_min_seconds` threshold.
 - **Backup** (4 endpoints): `GET /api/backup` (full database export as JSON), `POST /api/backup` (database import from JSON backup), `GET /api/backup/covers` (export all cover images as ZIP), `POST /api/backup/covers` (import covers from ZIP upload)
@@ -445,7 +457,7 @@ Manages all WebSocket connections and forwards events:
 
 The frontend is a Single Page Application (SPA) without build tools or frameworks:
 
-- **index.html**: Complete HTML with all views (Player, Library, Scanner, Playlists, Favorites, Ratings, History, Statistics, CD Library Editor, Settings, Terminal)
+- **index.html**: Complete HTML with all views (Player with power button, Library, Favorites with filter tabs, Playlists, Ratings, History, Statistics, Scanner, CD Library Editor, Settings, Terminal)
 - **app.js**: All application logic (state, rendering, event handlers, API calls, WebSocket connection)
 - **i18n.js**: Translation system with ~200 key-value pairs for German and English
 - **app.css**: Complete styling in dark theme with CSS Custom Properties

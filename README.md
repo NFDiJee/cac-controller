@@ -77,7 +77,8 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 - **Abort** - Cancel a running scan at any time
 
 ### Additional Features
-- **Favorites** - Mark individual tracks or entire CDs as favorites
+- **GPIO Power Control** - On/off button to control a relay via configurable GPIO pin (e.g., to power the CAC unit). Uses `pinctrl` — no additional packages required on Raspberry Pi
+- **Favorites** - Mark individual tracks or entire CDs as favorites; dedicated Favorites page with filter tabs (All / CD Favorites / Track Favorites)
 - **Ratings** - 1-5 star rating system for tracks and CDs with filterable views
 - **Play History** - Automatic tracking of all played tracks with timestamps and actual play duration
 - **Play Statistics** - Top tracks, top CDs, top artists, genre distribution, and activity charts with configurable minimum play duration threshold
@@ -143,6 +144,7 @@ All settings are configurable via the web UI under **More > Settings**:
 | Web Port | `3000` | HTTP server port |
 | Language | `auto` | Auto-detect, German, or English |
 | Stats Min Seconds | `30` | Minimum play duration (seconds) for a track to count in statistics |
+| GPIO Relay Pin | *(empty)* | BCM pin number for relay control (e.g., `17`). Empty = disabled |
 
 ### Hub / Network Settings
 
@@ -245,6 +247,13 @@ These endpoints require API key authentication (`X-API-Key` header). They provid
 
 > **Note:** When authenticated with an API key, the Hub can access **all** endpoints listed above (library, playlists, scanner, settings, etc.) — not just the `/api/node/*` routes. The API key middleware applies globally to all `/api/*` routes.
 
+### Power (GPIO Relay)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/power/status` | Get power status `{ configured, on }` |
+| `POST` | `/api/power/on` | Power on (GPIO HIGH) |
+| `POST` | `/api/power/off` | Power off (GPIO LOW) |
+
 ### Other
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -296,6 +305,7 @@ cac-controller/
 │   ├── player.js             # Player manager (polling, state, continuous/gapless/shuffle/playlist)
 │   ├── scanner.js            # CD scanner (TOC read, slot scanning)
 │   ├── musicbrainz.js        # MusicBrainz API + Cover Art Archive integration
+│   ├── gpio.js               # GPIO relay control (power on/off via pinctrl)
 │   ├── routes.js             # Express REST API routes
 │   └── websocket.js          # WebSocket manager (broadcasts state changes)
 ├── public/

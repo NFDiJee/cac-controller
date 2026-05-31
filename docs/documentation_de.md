@@ -211,6 +211,7 @@ cac-controller/
 │   ├── scanner.js            # CD-Scanner (TOC lesen, Slots scannen)
 │   ├── musicbrainz.js        # MusicBrainz-API und Cover Art Archive
 │   ├── database.js           # SQLite-Datenbank (Schema, CRUD-Operationen)
+│   ├── gpio.js               # GPIO-Relaissteuerung (Power On/Off via pinctrl)
 │   ├── routes.js             # REST-API-Routen
 │   └── websocket.js          # WebSocket-Manager (Broadcasts)
 ├── public/
@@ -240,7 +241,7 @@ Initialisiert alle Komponenten in der richtigen Reihenfolge:
 6. WebSocket-Server starten
 7. Serielle Verbindung oeffnen und Polling starten
 
-Graceful Shutdown ueber SIGINT/SIGTERM: Polling stoppen, serielle Verbindung schliessen.
+Graceful Shutdown ueber SIGINT/SIGTERM: Polling stoppen, GPIO aufraumen, serielle Verbindung schliessen.
 
 #### protocol.js — Pioneer-Protokoll
 
@@ -409,6 +410,16 @@ settings (key TEXT PRIMARY KEY, value TEXT)
 
 Die Spalte `duration_played` in `play_history` speichert die tatsaechliche Spieldauer in Sekunden. Der Schwellenwert `stats_min_seconds` (Standard: 30) bestimmt, ab welcher Dauer ein Track in der Statistik gezaehlt wird.
 
+#### gpio.js — GPIO-Relaissteuerung
+
+Steuert ein Relais ueber einen konfigurierbaren GPIO-Pin zum Ein-/Ausschalten des CAC-Geraets:
+
+- Nutzt `pinctrl` (auf jedem Raspberry Pi OS vorinstalliert) — keine zusaetzlichen npm-Pakete noetig
+- GPIO-Pin wird in den Einstellungen konfiguriert (`gpio_relay_pin`). Leer = deaktiviert
+- Active HIGH: `pinctrl set <pin> dh` = Relais EIN, `pinctrl set <pin> dl` = Relais AUS
+- Power-Button erscheint nur in der UI wenn ein Pin konfiguriert ist
+- Beim Herunterfahren wird der Pin auf LOW gesetzt (Relais AUS)
+
 #### routes.js — REST-API
 
 Definiert alle HTTP-Endpunkte:
@@ -421,6 +432,7 @@ Definiert alle HTTP-Endpunkte:
 - **MusicBrainz** (3 Endpunkte): Suche, Release-Details, Metadaten anwenden
 - **Scanner** (4 Endpunkte): Scan starten, Scan-All, Abbrechen, Fortschritt
 - **Playlists** (10 Endpunkte): CRUD, Items hinzufuegen/entfernen, Reihenfolge, Abspielen
+- **Power/GPIO** (3 Endpunkte): `GET /api/power/status`, `POST /api/power/on`, `POST /api/power/off` — Relais-Steuerung ueber konfigurierbaren GPIO-Pin (nutzt `pinctrl`)
 - **Favoriten, Bewertungen, History, Suche, Statistiken, Einstellungen, Play-Modi**
 - **Statistiken** (2 Endpunkte): `GET /api/stats` (Top-Tracks mit Covers, Top-CDs, Top-Kuenstler, Genre-Verteilung, Aktivitaets-Diagramm), `DELETE /api/stats/reset` (Verlauf zuruecksetzen). Beruecksichtigt den konfigurierbaren Schwellenwert `stats_min_seconds`.
 - **Backup** (4 Endpunkte): `GET /api/backup` (vollstaendiger Datenbank-Export als JSON), `POST /api/backup` (Datenbank-Import aus JSON-Backup), `GET /api/backup/covers` (alle Cover-Bilder als ZIP exportieren), `POST /api/backup/covers` (Cover-Bilder aus ZIP importieren)
@@ -445,7 +457,7 @@ Verwaltet alle WebSocket-Verbindungen und leitet Ereignisse weiter:
 
 Das Frontend ist eine Single Page Application (SPA) ohne Build-Tools oder Frameworks:
 
-- **index.html**: Komplettes HTML mit allen Ansichten (Player, Library, Scanner, Playlists, Favoriten, Bewertungen, History, Statistiken, CD-Bibliothek-Editor, Einstellungen, Terminal)
+- **index.html**: Komplettes HTML mit allen Ansichten (Player mit Power-Button, Library, Favoriten mit Filter-Tabs, Playlists, Bewertungen, History, Statistiken, Scanner, CD-Bibliothek-Editor, Einstellungen, Terminal)
 - **app.js**: Gesamte Anwendungslogik (Zustand, Rendering, Event-Handler, API-Aufrufe, WebSocket-Verbindung)
 - **i18n.js**: Uebersetzungssystem mit ca. 200 Schluessel-Wert-Paaren fuer Deutsch und Englisch
 - **app.css**: Vollstaendiges Styling im Dark Theme mit CSS Custom Properties

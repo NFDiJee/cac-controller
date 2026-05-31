@@ -487,7 +487,17 @@ Im Browser unter **Mehr > Einstellungen** (Zahnrad-Symbol) koennen folgende Eins
 |-------------|----------|--------------|
 | Statistik Min. Sekunden | `30` | Mindestspieldauer in Sekunden, damit ein Track in der Statistik gezaehlt wird |
 
-### 10.5 Aenderungen uebernehmen
+### 10.5 GPIO / Relais
+
+| Einstellung | Standard | Beschreibung |
+|-------------|----------|--------------|
+| GPIO-Pin (BCM) | *(leer)* | BCM-Pin-Nummer fuer das Relais zum Ein-/Ausschalten des CAC. Leer = deaktiviert. Typisch: `17` |
+
+Wenn ein Pin konfiguriert ist, erscheint ein Power-Button oben rechts in der Player-Ansicht. Die Steuerung nutzt `pinctrl` (auf jedem Raspberry Pi OS vorinstalliert). Active HIGH: Pin HIGH = Relais EIN, Pin LOW = Relais AUS.
+
+**Hardware-Hinweis:** Ein 10k-Ohm-Pulldown-Widerstand am GPIO-Pin wird empfohlen, damit das Relais bei Neustart/Absturz des RPi sicher ausgeschaltet bleibt. In `/boot/config.txt` kann der Pin mit `gpio=17=op,dl` beim Boot auf LOW gesetzt werden.
+
+### 10.6 Aenderungen uebernehmen
 
 Nach Aenderungen an Port oder seriellen Einstellungen den Service neu starten:
 

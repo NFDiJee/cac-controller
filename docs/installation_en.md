@@ -487,7 +487,17 @@ In the browser under **More > Settings** (gear icon), the following settings can
 |---------|---------|-------------|
 | Stats Min Seconds | `30` | Minimum play duration in seconds for a track to count in statistics |
 
-### 10.5 Apply Changes
+### 10.5 GPIO / Relay
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| GPIO Pin (BCM) | *(empty)* | BCM pin number for relay to power the CAC on/off. Empty = disabled. Typical: `17` |
+
+When a pin is configured, a power button appears in the top right of the player tab bar. Control uses `pinctrl` (pre-installed on every Raspberry Pi OS). Active HIGH: pin HIGH = relay ON, pin LOW = relay OFF.
+
+**Hardware note:** A 10k ohm pull-down resistor on the GPIO pin is recommended to ensure the relay stays off during RPi reboot/crash. In `/boot/config.txt`, set the pin LOW at boot with `gpio=17=op,dl`.
+
+### 10.6 Apply Changes
 
 After changes to port or serial settings, restart the service:
 

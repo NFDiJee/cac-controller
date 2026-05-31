@@ -154,6 +154,7 @@ Im Browser unter **Mehr > Einstellungen**:
 4. **Max. Discs** - 300 (V3000/V3200) oder 500 (V5000) oder 18 (V180M)
 5. **Sprache** - Automatisch, Deutsch oder English
 6. **Statistik Min. Sekunden** - Mindestspieldauer (Standard: 30s), damit ein Track in der Statistik gezaehlt wird
+7. **GPIO-Pin (BCM)** - Pin-Nummer fuer Relais-Steuerung (z.B. `17`). Leer = deaktiviert. Wenn gesetzt, erscheint ein Power-Button im Player
 
 Nach Aenderungen: Service neu starten:
 ```bash
