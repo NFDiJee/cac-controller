@@ -540,6 +540,16 @@ function fillFilterSelect(id, allLabel, values) {
   if (cur && values.includes(cur)) sel.value = cur;
 }
 
+function fillCDEditorFilterSelect(id, allLabel, values) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` +
+    `<option value="__empty__">${t('cdeditor.noValue')}</option>` +
+    values.map(v => `<option value="${escAttr(v)}">${escHtml(v)}</option>`).join('');
+  if (cur && (cur === '__empty__' || values.includes(cur))) sel.value = cur;
+}
+
 function applyLibraryFilters() {
   const query = (document.getElementById('librarySearch')?.value || '').toLowerCase();
   const genre = document.getElementById('filterGenre')?.value || '';
@@ -2577,10 +2587,10 @@ function loadCDEditor() {
   _cdeComboData.label = allLabels;
   _cdeComboData.genre = allGenres;
 
-  // populate filter dropdowns
-  fillFilterSelect('cdeditorFilterYear', t('library.allYears'), [...existingYears].sort((a,b) => b-a));
-  fillFilterSelect('cdeditorFilterLabel', t('library.allLabels'), [...existingLabels].sort());
-  fillFilterSelect('cdeditorFilterGenre', t('library.allGenres'), [...existingGenres].sort());
+  // populate filter dropdowns (with "no value" option)
+  fillCDEditorFilterSelect('cdeditorFilterYear', t('library.allYears'), [...existingYears].sort((a,b) => b-a));
+  fillCDEditorFilterSelect('cdeditorFilterLabel', t('library.allLabels'), [...existingLabels].sort());
+  fillCDEditorFilterSelect('cdeditorFilterGenre', t('library.allGenres'), [...existingGenres].sort());
 
   renderCDEditorList();
 }
