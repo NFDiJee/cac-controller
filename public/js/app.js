@@ -2285,10 +2285,13 @@ const CDEDITOR_LABELS = [
   'Virgin', 'Warp', 'Warner Bros.', 'XL Recordings', 'ZTT'
 ];
 
+let _cdeditorYearOpts = '', _cdeditorLabelOpts = '', _cdeditorGenreOpts = '';
+
 function loadCDEditor() {
   const container = document.getElementById('cdeditorList');
   if (!library || library.length === 0) {
     container.innerHTML = `<div class="empty-state"><p>${t('library.empty')}</p></div>`;
+    document.getElementById('cdeditorCount').textContent = '';
     return;
   }
 
@@ -2309,12 +2312,32 @@ function loadCDEditor() {
   for (const y of existingYears) { if (!allYears.includes(y)) allYears.push(y); }
   allYears.sort((a, b) => b - a);
 
-  const yearOpts = `<option value="">—</option>` + allYears.map(y => `<option value="${y}">${y}</option>`).join('');
-  const labelOpts = `<option value="">—</option>` + allLabels.map(l => `<option value="${escAttr(l)}">${escHtml(l)}</option>`).join('');
-  const genreOpts = `<option value="">—</option>` + allGenres.map(g => `<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
+  // build option strings (with custom entry at top)
+  const customLabel = t('cdeditor.custom');
+  _cdeditorYearOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allYears.map(y => `<option value="${y}">${y}</option>`).join('');
+  _cdeditorLabelOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allLabels.map(l => `<option value="${escAttr(l)}">${escHtml(l)}</option>`).join('');
+  _cdeditorGenreOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allGenres.map(g => `<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
 
-  const sorted = [...library].sort((a, b) => a.slot - b.slot);
-  container.innerHTML = sorted.map(cd => {
+  // populate filter dropdowns
+  fillFilterSelect('cdeditorFilterYear', t('library.allYears'), [...existingYears].sort((a,b) => b-a));
+  fillFilterSelect('cdeditorFilterLabel', t('library.allLabels'), [...existingLabels].sort());
+  fillFilterSelect('cdeditorFilterGenre', t('library.allGenres'), [...existingGenres].sort());
+
+  renderCDEditorList();
+}
+
+function renderCDEditorList() {
+  const container = document.getElementById('cdeditorList');
+  const filtered = getCDEditorFiltered();
+  const countEl = document.getElementById('cdeditorCount');
+  countEl.textContent = t('library.countOf', filtered.length, library.length);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><p style="padding:16px;color:var(--text-dim)">${t('cdeditor.noResults')}</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(cd => {
     const coverHtml = cd.cover_url
       ? `<img src="${escHtml(cd.cover_url)}" alt="" onerror="this.outerHTML='<span class=cdeditor-cover-ph>&#9834;</span>'">`
       : `<span class="cdeditor-cover-ph">&#9834;</span>`;
@@ -2329,15 +2352,15 @@ function loadCDEditor() {
         <div class="cdeditor-row2">
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
-            <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select>
+            <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorYearOpts}</select>
           </div>
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.label')}</span>
-            <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select>
+            <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorLabelOpts}</select>
           </div>
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.genre')}</span>
-            <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select>
+            <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorGenreOpts}</select>
           </div>
         </div>
       </div>
@@ -2345,13 +2368,73 @@ function loadCDEditor() {
   }).join('');
 
   // set current values
-  for (const cd of sorted) {
+  for (const cd of filtered) {
     const item = container.querySelector(`.cdeditor-item[data-slot="${cd.slot}"]`);
     if (!item) continue;
     const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
     item.querySelector('[data-field="year"]').value = yearVal;
     item.querySelector('[data-field="label"]').value = cd.label || '';
     item.querySelector('[data-field="genre"]').value = cd.genre || '';
+  }
+}
+
+function getCDEditorFiltered() {
+  const slotVal = (document.getElementById('cdeditorFilterSlot')?.value || '').trim();
+  const titleVal = (document.getElementById('cdeditorFilterTitle')?.value || '').toLowerCase();
+  const artistVal = (document.getElementById('cdeditorFilterArtist')?.value || '').toLowerCase();
+  const yearVal = document.getElementById('cdeditorFilterYear')?.value || '';
+  const labelVal = document.getElementById('cdeditorFilterLabel')?.value || '';
+  const genreVal = document.getElementById('cdeditorFilterGenre')?.value || '';
+
+  return [...library].filter(cd => {
+    if (slotVal && String(cd.slot) !== slotVal) return false;
+    if (titleVal && !(cd.title||'').toLowerCase().includes(titleVal)) return false;
+    if (artistVal && !(cd.artist||'').toLowerCase().includes(artistVal)) return false;
+    if (yearVal) { const m = (cd.year||'').match(/(\d{4})/); if (!m || m[1] !== yearVal) return false; }
+    if (labelVal && cd.label !== labelVal) return false;
+    if (genreVal && cd.genre !== genreVal) return false;
+    return true;
+  }).sort((a, b) => a.slot - b.slot);
+}
+
+function applyCDEditorFilters() { renderCDEditorList(); }
+
+function resetCDEditorFilters() {
+  document.getElementById('cdeditorFilterSlot').value = '';
+  document.getElementById('cdeditorFilterTitle').value = '';
+  document.getElementById('cdeditorFilterArtist').value = '';
+  document.getElementById('cdeditorFilterYear').value = '';
+  document.getElementById('cdeditorFilterLabel').value = '';
+  document.getElementById('cdeditorFilterGenre').value = '';
+  renderCDEditorList();
+}
+
+function cdeditorOnChange(sel) {
+  if (sel.value === '__custom__') {
+    const fieldLabels = { year: t('cdeditor.year'), label: t('cdeditor.label'), genre: t('cdeditor.genre') };
+    const custom = prompt(t('cdeditor.enterCustom', fieldLabels[sel.dataset.field]));
+    if (custom && custom.trim()) {
+      const val = custom.trim();
+      // add option if not exists
+      if (![...sel.options].some(o => o.value === val)) {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        sel.appendChild(opt);
+      }
+      sel.value = val;
+      cdeditorSave(sel);
+    } else {
+      // restore previous value
+      const cd = library.find(c => c.slot == sel.dataset.slot);
+      if (sel.dataset.field === 'year') {
+        sel.value = cd?.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
+      } else {
+        sel.value = cd?.[sel.dataset.field] || '';
+      }
+    }
+  } else {
+    cdeditorSave(sel);
   }
 }
 

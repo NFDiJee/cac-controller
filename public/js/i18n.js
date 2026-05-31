@@ -255,13 +255,19 @@ const translations = {
 
     // CD Editor
     'cdeditor.title': 'CD Bibliothek Editor',
-    'cdeditor.hint': 'Schnelle Bearbeitung von Slot, Jahr, Label und Genre per Dropdown.',
+    'cdeditor.hint': 'Schnelle Bearbeitung von Slot, Jahr, Label und Genre per Dropdown. Aenderungen werden sofort gespeichert.',
     'cdeditor.slot': 'Slot',
     'cdeditor.cdTitle': 'Titel',
     'cdeditor.artist': 'Interpret',
     'cdeditor.year': 'Jahr',
     'cdeditor.label': 'Label',
     'cdeditor.genre': 'Genre',
+    'cdeditor.custom': 'Eigener Wert...',
+    'cdeditor.enterCustom': '{0} eingeben:',
+    'cdeditor.filterSlot': 'Slot',
+    'cdeditor.filterTitle': 'Titel...',
+    'cdeditor.filterArtist': 'Interpret...',
+    'cdeditor.noResults': 'Keine CDs gefunden.',
 
     // History
     'history.clear': 'Verlauf loeschen',
@@ -628,13 +634,19 @@ const translations = {
 
     // CD Editor
     'cdeditor.title': 'CD Library Editor',
-    'cdeditor.hint': 'Quick editing of slot, year, label and genre via dropdown.',
+    'cdeditor.hint': 'Quick editing of slot, year, label and genre via dropdown. Changes are saved immediately.',
     'cdeditor.slot': 'Slot',
     'cdeditor.cdTitle': 'Title',
     'cdeditor.artist': 'Artist',
     'cdeditor.year': 'Year',
     'cdeditor.label': 'Label',
     'cdeditor.genre': 'Genre',
+    'cdeditor.custom': 'Custom value...',
+    'cdeditor.enterCustom': 'Enter {0}:',
+    'cdeditor.filterSlot': 'Slot',
+    'cdeditor.filterTitle': 'Title...',
+    'cdeditor.filterArtist': 'Artist...',
+    'cdeditor.noResults': 'No CDs found.',
 
     // History
     'history.clear': 'Clear history',

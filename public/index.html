@@ -447,6 +447,22 @@
         <div class="card">
           <div class="card-title" style="margin-bottom:8px" data-i18n="cdeditor.title">CD Bibliothek Editor</div>
           <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:10px" data-i18n="cdeditor.hint">Schnelle Bearbeitung von Slot, Jahr, Label und Genre per Dropdown.</p>
+          <div class="cdeditor-filters">
+            <input type="number" class="form-input cdeditor-filter-input" id="cdeditorFilterSlot" data-i18n-placeholder="cdeditor.filterSlot" placeholder="Slot" oninput="applyCDEditorFilters()" min="1" style="width:70px">
+            <input type="text" class="form-input cdeditor-filter-input" id="cdeditorFilterTitle" data-i18n-placeholder="cdeditor.filterTitle" placeholder="Titel" oninput="applyCDEditorFilters()">
+            <input type="text" class="form-input cdeditor-filter-input" id="cdeditorFilterArtist" data-i18n-placeholder="cdeditor.filterArtist" placeholder="Interpret" oninput="applyCDEditorFilters()">
+            <select class="form-input cdeditor-filter-input" id="cdeditorFilterYear" onchange="applyCDEditorFilters()">
+              <option value="" data-i18n="library.allYears">Alle Jahre</option>
+            </select>
+            <select class="form-input cdeditor-filter-input" id="cdeditorFilterLabel" onchange="applyCDEditorFilters()">
+              <option value="" data-i18n="library.allLabels">Alle Labels</option>
+            </select>
+            <select class="form-input cdeditor-filter-input" id="cdeditorFilterGenre" onchange="applyCDEditorFilters()">
+              <option value="" data-i18n="library.allGenres">Alle Genres</option>
+            </select>
+            <button class="btn btn-dim btn-sm" onclick="resetCDEditorFilters()" data-i18n="library.resetFilter" title="Filter zuruecksetzen">&#8635;</button>
+          </div>
+          <div class="cdeditor-count" id="cdeditorCount"></div>
           <div id="cdeditorList"></div>
         </div>
       </div>

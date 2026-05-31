@@ -1170,5 +1170,24 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 }
 .cdeditor-select:focus { border-color: var(--accent); outline: none; }
 .cdeditor-select.changed { border-color: var(--green); background: var(--green-dim); }
+.cdeditor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.cdeditor-filter-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 160px;
+  padding: 6px 8px !important;
+  font-size: 0.78rem !important;
+}
+.cdeditor-count {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
 .cdeditor-saved { animation: cdeditorFlash 0.6s ease; }
 @keyframes cdeditorFlash { 0%,100% { background: transparent; } 50% { background: var(--green-dim); } }
