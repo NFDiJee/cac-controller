@@ -711,7 +711,11 @@ export function createRoutes(playerManager, scanner, serial) {
   // ── Power (GPIO Relay) ──
 
   router.get('/api/power/status', (req, res) => {
-    res.json(getPowerStatus());
+    try {
+      res.json(getPowerStatus());
+    } catch (err) {
+      res.json({ configured: false, on: false });
+    }
   });
 
   router.post('/api/power/on', (req, res) => {
