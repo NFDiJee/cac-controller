@@ -453,12 +453,15 @@
             <input type="text" class="form-input cdeditor-filter-input" id="cdeditorFilterArtist" data-i18n-placeholder="cdeditor.filterArtist" placeholder="Interpret" oninput="applyCDEditorFilters()">
             <select class="form-input cdeditor-filter-input" id="cdeditorFilterYear" onchange="applyCDEditorFilters()">
               <option value="" data-i18n="library.allYears">Alle Jahre</option>
+              <option value="__empty__" data-i18n="cdeditor.noValue">Ohne Wert</option>
             </select>
             <select class="form-input cdeditor-filter-input" id="cdeditorFilterLabel" onchange="applyCDEditorFilters()">
               <option value="" data-i18n="library.allLabels">Alle Labels</option>
+              <option value="__empty__" data-i18n="cdeditor.noValue">Ohne Wert</option>
             </select>
             <select class="form-input cdeditor-filter-input" id="cdeditorFilterGenre" onchange="applyCDEditorFilters()">
               <option value="" data-i18n="library.allGenres">Alle Genres</option>
+              <option value="__empty__" data-i18n="cdeditor.noValue">Ohne Wert</option>
             </select>
             <button class="btn btn-dim btn-sm" onclick="resetCDEditorFilters()" data-i18n="library.resetFilter" title="Filter zuruecksetzen">&#8635;</button>
           </div>

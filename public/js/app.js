@@ -2616,9 +2616,12 @@ function getCDEditorFiltered() {
     if (slotVal && String(cd.slot) !== slotVal) return false;
     if (titleVal && !(cd.title||'').toLowerCase().includes(titleVal)) return false;
     if (artistVal && !(cd.artist||'').toLowerCase().includes(artistVal)) return false;
-    if (yearVal) { const m = (cd.year||'').match(/(\d{4})/); if (!m || m[1] !== yearVal) return false; }
-    if (labelVal && cd.label !== labelVal) return false;
-    if (genreVal && cd.genre !== genreVal) return false;
+    if (yearVal === '__empty__') { if (cd.year && cd.year.trim() && cd.year.trim() !== '-') return false; }
+    else if (yearVal) { const m = (cd.year||'').match(/(\d{4})/); if (!m || m[1] !== yearVal) return false; }
+    if (labelVal === '__empty__') { if (cd.label && cd.label.trim() && cd.label.trim() !== '-') return false; }
+    else if (labelVal && cd.label !== labelVal) return false;
+    if (genreVal === '__empty__') { if (cd.genre && cd.genre.trim() && cd.genre.trim() !== '-') return false; }
+    else if (genreVal && cd.genre !== genreVal) return false;
     return true;
   }).sort((a, b) => {
     let va, vb;
