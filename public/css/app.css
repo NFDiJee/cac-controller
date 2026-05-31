@@ -1219,6 +1219,18 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   padding: 6px 8px !important;
   font-size: 0.78rem !important;
 }
+.cdeditor-sort-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.cdeditor-sort-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
 .cdeditor-count {
   font-size: 0.72rem;
   color: var(--text-dim);

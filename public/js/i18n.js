@@ -272,6 +272,15 @@ const translations = {
     'cdeditor.slotMove': 'Slot-Nr. aendern',
     'cdeditor.slotMoved': 'CD von Slot {0} nach {1} verschoben',
     'cdeditor.invalidSlot': 'Ungueltige Slot-Nummer (1-500)',
+    'cdeditor.sortBy': 'Sortierung:',
+    'cdeditor.sortSlot': 'Slot',
+    'cdeditor.sortTitle': 'Titel',
+    'cdeditor.sortArtist': 'Interpret',
+    'cdeditor.sortYear': 'Jahr',
+    'cdeditor.sortLabel': 'Label',
+    'cdeditor.sortGenre': 'Genre',
+    'cdeditor.sortAsc': 'A\u2192Z / 0\u21929',
+    'cdeditor.sortDesc': 'Z\u2192A / 9\u21920',
 
     // History
     'history.clear': 'Verlauf loeschen',
@@ -655,6 +664,15 @@ const translations = {
     'cdeditor.slotMove': 'Change slot number',
     'cdeditor.slotMoved': 'CD moved from slot {0} to {1}',
     'cdeditor.invalidSlot': 'Invalid slot number (1-500)',
+    'cdeditor.sortBy': 'Sort by:',
+    'cdeditor.sortSlot': 'Slot',
+    'cdeditor.sortTitle': 'Title',
+    'cdeditor.sortArtist': 'Artist',
+    'cdeditor.sortYear': 'Year',
+    'cdeditor.sortLabel': 'Label',
+    'cdeditor.sortGenre': 'Genre',
+    'cdeditor.sortAsc': 'A\u2192Z / 0\u21929',
+    'cdeditor.sortDesc': 'Z\u2192A / 9\u21920',
 
     // History
     'history.clear': 'Clear history',

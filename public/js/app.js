@@ -2387,6 +2387,9 @@ function getCDEditorFiltered() {
   const labelVal = document.getElementById('cdeditorFilterLabel')?.value || '';
   const genreVal = document.getElementById('cdeditorFilterGenre')?.value || '';
 
+  const sortField = document.getElementById('cdeditorSortField')?.value || 'slot';
+  const sortDir = document.getElementById('cdeditorSortDir')?.value || 'asc';
+
   return [...library].filter(cd => {
     if (slotVal && String(cd.slot) !== slotVal) return false;
     if (titleVal && !(cd.title||'').toLowerCase().includes(titleVal)) return false;
@@ -2395,10 +2398,27 @@ function getCDEditorFiltered() {
     if (labelVal && cd.label !== labelVal) return false;
     if (genreVal && cd.genre !== genreVal) return false;
     return true;
-  }).sort((a, b) => a.slot - b.slot);
+  }).sort((a, b) => {
+    let va, vb;
+    if (sortField === 'slot') {
+      va = a.slot; vb = b.slot;
+    } else if (sortField === 'year') {
+      va = ((a.year||'').match(/(\d{4})/)||[])[1] || ''; vb = ((b.year||'').match(/(\d{4})/)||[])[1] || '';
+    } else {
+      va = (a[sortField]||'').toLowerCase(); vb = (b[sortField]||'').toLowerCase();
+    }
+    const cmp = sortField === 'slot' ? va - vb : String(va).localeCompare(String(vb));
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
 }
 
 function applyCDEditorFilters() { renderCDEditorList(); }
+
+function resetCDEditorSort() {
+  document.getElementById('cdeditorSortField').value = 'slot';
+  document.getElementById('cdeditorSortDir').value = 'asc';
+  renderCDEditorList();
+}
 
 function resetCDEditorFilters() {
   document.getElementById('cdeditorFilterSlot').value = '';
