@@ -1616,12 +1616,30 @@ async function loadPlaylists() {
     const empty = document.getElementById('playlistEmpty');
     if (playlists.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    container.innerHTML = playlists.map(pl => `
-      <div class="card" style="cursor:pointer" onclick="showPlaylistDetail(${pl.id})">
-        <div style="font-weight:600">${escHtml(pl.name)}</div>
-        <div style="font-size:0.75rem;color:var(--text-dim)">${escHtml(pl.description||'')}</div>
-      </div>
-    `).join('');
+    container.innerHTML = playlists.map(pl => {
+      const items = pl.items || [];
+      // collect unique covers (max 4)
+      const seenSlots = new Set();
+      const covers = [];
+      for (const item of items) {
+        if (seenSlots.has(item.slot)) continue;
+        seenSlots.add(item.slot);
+        const cd = library.find(c => c.slot === item.slot);
+        if (cd?.cover_url) covers.push(cd.cover_url);
+        if (covers.length >= 4) break;
+      }
+      const coversHtml = covers.length > 0
+        ? `<div class="playlist-covers">${covers.map(src => `<img class="playlist-mini-cover" src="${escHtml(src)}" alt="">`).join('')}</div>`
+        : '';
+      return `<div class="playlist-item" onclick="showPlaylistDetail(${pl.id})">
+        <div class="playlist-item-meta">
+          <div class="playlist-name">${escHtml(pl.name)}</div>
+          <div class="playlist-count">${items.length} ${t('library.tracks')}${pl.description ? ' · ' + escHtml(pl.description) : ''}</div>
+        </div>
+        ${coversHtml}
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deletePlaylist(${pl.id})">&times;</button>
+      </div>`;
+    }).join('');
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1667,16 +1685,20 @@ function renderPlaylistDetail(pl) {
 
   if (items.length > 0) {
     html += `<div class="playlist-detail-list" id="plDetailList">`;
-    html += items.map((item, idx) => `
-      <div class="pl-detail-item" draggable="true" data-idx="${idx}" data-item-id="${item.id}">
+    html += items.map((item, idx) => {
+      const cd = library.find(c => c.slot === item.slot);
+      const coverUrl = cd?.cover_url || '';
+      return `<div class="pl-detail-item" draggable="true" data-idx="${idx}" data-item-id="${item.id}">
         <span class="drag-handle" title="Drag">&#9776;</span>
         <span class="track-num">${idx + 1}</span>
+        ${coverUrl ? `<img class="playlist-item-cover" src="${escHtml(coverUrl)}" alt="">` : `<span class="playlist-item-no-cover">${item.slot}</span>`}
         <div class="track-info" onclick="loadAndPlayTrack(${item.slot},${item.track_number})" style="cursor:pointer">
           <div class="track-title">${escHtml(item.track_title||item.cd_title||`CD ${item.slot}`)}</div>
           <div class="track-artist">${escHtml(item.track_artist||item.cd_artist||'')} · Slot ${item.slot} · Track ${item.track_number}</div>
         </div>
         <button class="btn-icon btn-remove-item" onclick="event.stopPropagation();removePlaylistItem(${pl.id},${item.id})" title="${escAttr(t('playlists.remove'))}">&times;</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     html += `</div>`;
   } else {
     html += `<div class="empty-state"><p>${t('playlists.emptyList')}</p></div>`;
@@ -1876,15 +1898,18 @@ async function loadHistory() {
     const history = await api('/history?limit=50');
     const container = document.getElementById('historyList');
     if (history.length === 0) { container.innerHTML = `<div class="empty-state"><p>${t('history.empty')}</p></div>`; return; }
-    container.innerHTML = history.map(h => `
-      <div class="list-item" onclick="loadAndPlayTrack(${h.slot},${h.track_number})" style="cursor:pointer">
-        <div class="slot-badge">${h.slot}</div>
-        <div class="list-meta">
-          <div class="list-primary">${escHtml(h.track_title||h.cd_title||`CD ${h.slot}`)}</div>
-          <div class="list-secondary">${escHtml(h.cd_artist||'')} | Track ${h.track_number} | ${formatDate(h.played_at)}</div>
+    container.innerHTML = history.map(h => {
+      const cd = library.find(c => c.slot === h.slot);
+      const coverUrl = cd?.cover_url || '';
+      return `<div class="fav-item" onclick="loadAndPlayTrack(${h.slot},${h.track_number})">
+        ${coverUrl ? `<img class="fav-cover" src="${escHtml(coverUrl)}" alt="" onerror="this.outerHTML='<div class=\\'fav-cover fav-no-cover\\'>${h.slot}</div>'">` : `<div class="fav-cover fav-no-cover">${h.slot}</div>`}
+        <div class="fav-meta">
+          <div class="fav-title">${escHtml(h.track_title||h.cd_title||`CD ${h.slot}`)}</div>
+          <div class="fav-artist">${escHtml(h.cd_artist||'')} · Track ${h.track_number}</div>
+          <div class="fav-slot">${formatDate(h.played_at)}</div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   } catch (err) { console.error(err); }
 }
 
@@ -1903,13 +1928,16 @@ async function loadFavorites() {
       const isTrack = f.track_number > 0;
       const title = isTrack ? (f.track_title || `Track ${f.track_number}`) : (f.cd_title || `CD ${f.slot}`);
       const sub = isTrack
-        ? `${escHtml(f.cd_title||`CD ${f.slot}`)} | Track ${f.track_number} | ${escHtml(f.cd_artist||'')}`
+        ? `${escHtml(f.cd_title||`CD ${f.slot}`)} · Track ${f.track_number} · ${escHtml(f.cd_artist||'')}`
         : escHtml(f.cd_artist||'');
-      return `<div class="list-item" style="cursor:pointer">
-        <div class="slot-badge" onclick="loadAndPlayTrack(${f.slot},${f.track_number||1})">${f.slot}</div>
-        <div class="list-meta" onclick="loadAndPlayTrack(${f.slot},${f.track_number||1})">
-          <div class="list-primary">${escHtml(title)}</div>
-          <div class="list-secondary">${sub}</div>
+      const cd = library.find(c => c.slot === f.slot);
+      const coverUrl = cd?.cover_url || '';
+      return `<div class="fav-item" onclick="loadAndPlayTrack(${f.slot},${f.track_number||1})">
+        ${coverUrl ? `<img class="fav-cover" src="${escHtml(coverUrl)}" alt="" onerror="this.outerHTML='<div class=\\'fav-cover fav-no-cover\\'>${f.slot}</div>'">` : `<div class="fav-cover fav-no-cover">${f.slot}</div>`}
+        <div class="fav-meta">
+          <div class="fav-title">${escHtml(title)}</div>
+          <div class="fav-artist">${sub}</div>
+          <div class="fav-slot">Slot ${f.slot}</div>
         </div>
         <button class="btn-icon" onclick="event.stopPropagation();removeFav(${f.slot},${f.track_number})" style="color:var(--red)">&#9829;</button>
       </div>`;
@@ -1950,15 +1978,18 @@ async function loadRatings() {
       const isTrack = r.track_number > 0;
       const title = isTrack ? (r.track_title || `Track ${r.track_number}`) : (r.cd_title || `CD ${r.slot}`);
       const sub = isTrack
-        ? `${escHtml(r.cd_title||`CD ${r.slot}`)} | Track ${r.track_number} | ${escHtml(r.cd_artist||'')}`
+        ? `${escHtml(r.cd_title||`CD ${r.slot}`)} · Track ${r.track_number} · ${escHtml(r.cd_artist||'')}`
         : escHtml(r.cd_artist||'');
-      return `<div class="list-item" onclick="loadAndPlayTrack(${r.slot},${r.track_number||1})" style="cursor:pointer">
-        <div class="slot-badge">${r.slot}</div>
-        <div class="list-meta">
-          <div class="list-primary">${escHtml(title)}</div>
-          <div class="list-secondary">${sub}</div>
+      const cd = library.find(c => c.slot === r.slot);
+      const coverUrl = cd?.cover_url || '';
+      return `<div class="fav-item" onclick="loadAndPlayTrack(${r.slot},${r.track_number||1})">
+        ${coverUrl ? `<img class="fav-cover" src="${escHtml(coverUrl)}" alt="" onerror="this.outerHTML='<div class=\\'fav-cover fav-no-cover\\'>${r.slot}</div>'">` : `<div class="fav-cover fav-no-cover">${r.slot}</div>`}
+        <div class="fav-meta">
+          <div class="fav-title">${escHtml(title)}</div>
+          <div class="fav-artist">${sub}</div>
+          <div class="fav-slot">Slot ${r.slot}</div>
         </div>
-        <div class="stars-display">${starsHtml(r.rating)}</div>
+        <div class="rating-display">${starsHtml(r.rating)}</div>
       </div>`;
     }).join('');
   } catch (err) { console.error(err); }
@@ -2335,13 +2366,13 @@ function cdeComboRenderOpts(combo) {
   html += `<div class="cde-combo-opt custom-opt" data-val="__custom__" onclick="cdeComboSelect(this)">+ ${t('cdeditor.custom')}</div>`;
   opts.innerHTML = html;
 
-  // highlight first match when searching
+  // highlight first real match when searching (skip "—" placeholder)
   if (searchVal && filtered.length > 0) {
-    const firstMatch = opts.querySelector('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)');
-    if (firstMatch) {
-      opts.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
-      firstMatch.classList.add('highlight');
-      firstMatch.scrollIntoView({ block: 'nearest' });
+    const realOpts = [...opts.querySelectorAll('.cde-combo-opt[data-val]:not(.cde-combo-section):not(.custom-opt)')].filter(o => o.dataset.val !== '');
+    opts.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+    if (realOpts.length > 0) {
+      realOpts[0].classList.add('highlight');
+      realOpts[0].scrollIntoView({ block: 'nearest' });
     }
   } else {
     const sel = opts.querySelector('.selected');
@@ -2374,23 +2405,23 @@ function cdeComboFilter(input) {
 function cdeComboSearchKey(e) {
   const combo = e.target.closest('.cde-combo');
   const opts = combo.querySelector('.cde-combo-opts');
+  const selectable = [...opts.querySelectorAll('.cde-combo-opt[data-val]:not(.cde-combo-section)')];
   if (e.key === 'Enter') {
     e.preventDefault();
-    const highlighted = opts.querySelector('.highlight') || opts.querySelector('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)');
+    const highlighted = opts.querySelector('.highlight');
     if (highlighted) cdeComboSelect(highlighted);
   } else if (e.key === 'Escape') {
     e.preventDefault();
     combo.querySelector('.cde-combo-drop').classList.remove('open');
   } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
-    const allOpts = [...opts.querySelectorAll('.cde-combo-opt:not(.cde-combo-section):not(.custom-opt)')];
-    if (allOpts.length === 0) return;
+    if (selectable.length === 0) return;
     const cur = opts.querySelector('.highlight');
-    let idx = cur ? allOpts.indexOf(cur) : -1;
+    let idx = cur ? selectable.indexOf(cur) : -1;
     if (cur) cur.classList.remove('highlight');
-    idx = e.key === 'ArrowDown' ? Math.min(idx + 1, allOpts.length - 1) : Math.max(idx - 1, 0);
-    allOpts[idx].classList.add('highlight');
-    allOpts[idx].scrollIntoView({ block: 'nearest' });
+    idx = e.key === 'ArrowDown' ? Math.min(idx + 1, selectable.length - 1) : Math.max(idx - 1, 0);
+    selectable[idx].classList.add('highlight');
+    selectable[idx].scrollIntoView({ block: 'nearest' });
   }
 }
 

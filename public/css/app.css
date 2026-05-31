@@ -1034,6 +1034,98 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   text-align: right;
 }
 
+/* ── Fav/History/Rating Items (Hub-style) ── */
+.fav-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  margin-bottom: 6px;
+}
+.fav-item:hover { border-color: var(--accent); }
+.fav-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.fav-no-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.fav-meta { flex: 1; min-width: 0; }
+.fav-title { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-artist { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-slot { font-size: 0.72rem; color: var(--accent); }
+.rating-display {
+  color: var(--yellow);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+/* ── Playlist List (Hub-style) ── */
+.playlist-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  margin-bottom: 6px;
+}
+.playlist-item:hover { border-color: var(--accent); }
+.playlist-item-meta { flex: 1; min-width: 0; }
+.playlist-name { font-weight: 600; }
+.playlist-count { font-size: 0.8rem; color: var(--text-dim); }
+.playlist-covers { display: flex; flex-shrink: 0; }
+.playlist-mini-cover {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 2px solid var(--bg-card);
+  margin-right: -10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.playlist-mini-cover:last-child { margin-right: 0; }
+.playlist-item-cover {
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.playlist-item-no-cover {
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.6rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
 /* ── Playlist Drag & Drop ── */
 .playlist-detail-list {
   border: 1px solid var(--border);
