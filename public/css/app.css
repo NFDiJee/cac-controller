@@ -25,6 +25,7 @@
   --gold: #ffd700;
   --heart: #ef5350;
   --cyan: #06b6d4;
+  --accent-subtle: rgba(79,195,247,0.08);
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
@@ -386,7 +387,7 @@ body {
 }
 .cd-card.selected {
   border-color: var(--accent);
-  background: rgba(79,195,247,0.08);
+  background: var(--accent-subtle);
 }
 .cd-card.selected .cd-select-check {
   color: var(--accent);
@@ -781,7 +782,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: var(--text-dim);
 }
 .import-stats .stat-ok { color: var(--green); }
-.import-stats .stat-warn { color: var(--yellow, #f0ad4e); }
+.import-stats .stat-warn { color: var(--yellow); }
 .import-stats .stat-err { color: var(--red); }
 .import-actions {
   display: flex;
@@ -835,7 +836,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   white-space: nowrap;
 }
 .import-badge-ok { background: var(--green); color: #fff; }
-.import-badge-warn { background: var(--yellow, #f0ad4e); color: #000; }
+.import-badge-warn { background: var(--yellow); color: #000; }
 .import-badge-err { background: var(--red); color: #fff; }
 .import-slot-cell {
   white-space: nowrap;
@@ -1024,7 +1025,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   color: var(--text);
 }
 .stats-table tr:hover td {
-  background: rgba(79, 195, 247, 0.08);
+  background: var(--accent-subtle);
 }
 .genre-bar-row {
   display: flex;
