@@ -1866,6 +1866,7 @@ function showMoreTab(name) {
   if (name === 'ratings') loadRatings();
   if (name === 'stats') loadStats();
   if (name === 'settings') loadSettings();
+  if (name === 'cdeditor') loadCDEditor();
 }
 
 function loadMoreData() { loadHistory(); }
@@ -2257,6 +2258,104 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 });
 
 // ── Utilities ──
+// ── CD Editor ──
+const CDEDITOR_GENRES = [
+  'Alternative', 'Ambient', 'Blues', 'Children\'s', 'Classical', 'Country',
+  'Dance', 'Disco', 'Electronic', 'Folk', 'Funk', 'Gospel', 'Grunge',
+  'Hip-Hop', 'House', 'Indie', 'Industrial', 'Jazz', 'K-Pop', 'Latin',
+  'Lo-Fi', 'Metal', 'Musical', 'New Age', 'New Wave', 'Opera', 'Pop',
+  'Post-Punk', 'Progressive Rock', 'Psychedelic', 'Punk', 'R&B', 'Reggae',
+  'Rock', 'Schlager', 'Singer-Songwriter', 'Ska', 'Soul', 'Soundtrack',
+  'Spoken Word', 'Swing', 'Synth-Pop', 'Techno', 'Trance', 'Trip-Hop',
+  'Vocal', 'World'
+];
+
+const CDEDITOR_LABELS = [
+  '4AD', 'A&M Records', 'Ariola', 'Arista', 'Atlantic', 'Avex',
+  'BBC Records', 'BMG', 'Blue Note', 'Capitol', 'Chrysalis',
+  'Columbia', 'Cooking Vinyl', 'Decca', 'Def Jam', 'Deutsche Grammophon',
+  'Domino', 'Drag City', 'ECM', 'EMI', 'Elektra', 'Epic', 'Epitaph',
+  'Factory', 'Fantasy', 'Fiction', 'Geffen', 'Harvest', 'Interscope',
+  'Island', 'Jive', 'K-tel', 'London', 'MCA', 'MFSL', 'Matador',
+  'Mercury', 'Merge', 'Motown', 'Mute', 'Nonesuch', 'Parlophone',
+  'Philips', 'Polydor', 'Polystar', 'RCA', 'Reprise', 'Rhino',
+  'Roadrunner', 'Rough Trade', 'Rykodisc', 'SONY', 'Sanctuary',
+  'Secretly Canadian', 'Sire', 'Sony Music', 'Stiff', 'Sub Pop',
+  'Sumerian', 'Telstar', 'Teldec', 'Universal', 'Vagrant', 'Verve',
+  'Virgin', 'Warp', 'Warner Bros.', 'XL Recordings', 'ZTT'
+];
+
+function loadCDEditor() {
+  const body = document.getElementById('cdeditorBody');
+  if (!library || library.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px">${t('library.empty')}</td></tr>`;
+    return;
+  }
+
+  // collect existing values for custom options
+  const existingYears = new Set(), existingLabels = new Set(), existingGenres = new Set();
+  for (const cd of library) {
+    if (cd.year) { const m = (cd.year+'').match(/(\d{4})/); if (m) existingYears.add(m[1]); }
+    if (cd.label) existingLabels.add(cd.label);
+    if (cd.genre) existingGenres.add(cd.genre);
+  }
+
+  // merge with presets
+  const allLabels = [...new Set([...CDEDITOR_LABELS, ...existingLabels])].sort();
+  const allGenres = [...new Set([...CDEDITOR_GENRES, ...existingGenres])].sort();
+  const currentYear = new Date().getFullYear();
+  const allYears = [];
+  for (let y = currentYear; y >= 1950; y--) allYears.push(String(y));
+  // add any years outside range from library
+  for (const y of existingYears) { if (!allYears.includes(y)) allYears.push(y); }
+  allYears.sort((a, b) => b - a);
+
+  const yearOpts = `<option value="">—</option>` + allYears.map(y => `<option value="${y}">${y}</option>`).join('');
+  const labelOpts = `<option value="">—</option>` + allLabels.map(l => `<option value="${escAttr(l)}">${escHtml(l)}</option>`).join('');
+  const genreOpts = `<option value="">—</option>` + allGenres.map(g => `<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
+
+  const sorted = [...library].sort((a, b) => a.slot - b.slot);
+  body.innerHTML = sorted.map(cd => {
+    const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
+    return `<tr data-slot="${cd.slot}">
+      <td>${cd.slot}</td>
+      <td title="${escAttr(cd.title||'')}">${escHtml(cd.title||'')}</td>
+      <td title="${escAttr(cd.artist||'')}">${escHtml(cd.artist||'')}</td>
+      <td><select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select></td>
+      <td><select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select></td>
+      <td><select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select></td>
+    </tr>`;
+  }).join('');
+
+  // set current values
+  for (const cd of sorted) {
+    const row = body.querySelector(`tr[data-slot="${cd.slot}"]`);
+    if (!row) continue;
+    const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
+    row.querySelector('[data-field="year"]').value = yearVal;
+    row.querySelector('[data-field="label"]').value = cd.label || '';
+    row.querySelector('[data-field="genre"]').value = cd.genre || '';
+  }
+}
+
+async function cdeditorSave(sel) {
+  const slot = sel.dataset.slot;
+  const field = sel.dataset.field;
+  const value = sel.value;
+  try {
+    await api(`/library/${slot}`, 'PUT', { [field]: value });
+    sel.classList.add('changed');
+    sel.closest('tr').classList.add('cdeditor-saved');
+    setTimeout(() => {
+      sel.classList.remove('changed');
+      sel.closest('tr').classList.remove('cdeditor-saved');
+    }, 1500);
+    // update local library cache
+    const cd = library.find(c => c.slot == slot);
+    if (cd) cd[field] = value;
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 function formatDuration(seconds) {
   if (!seconds) return '00:00:00';
   const h = Math.floor(seconds / 3600);

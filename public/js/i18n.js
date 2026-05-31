@@ -250,7 +250,18 @@ const translations = {
     'more.favorites': 'Favoriten',
     'more.stats': 'Statistik',
     'more.settings': 'Einstellungen',
+    'more.cdeditor': 'CD Editor',
     'more.terminal': 'Terminal',
+
+    // CD Editor
+    'cdeditor.title': 'CD Bibliothek Editor',
+    'cdeditor.hint': 'Schnelle Bearbeitung von Slot, Jahr, Label und Genre per Dropdown.',
+    'cdeditor.slot': 'Slot',
+    'cdeditor.cdTitle': 'Titel',
+    'cdeditor.artist': 'Interpret',
+    'cdeditor.year': 'Jahr',
+    'cdeditor.label': 'Label',
+    'cdeditor.genre': 'Genre',
 
     // History
     'history.clear': 'Verlauf loeschen',
@@ -612,7 +623,18 @@ const translations = {
     'more.favorites': 'Favorites',
     'more.stats': 'Statistics',
     'more.settings': 'Settings',
+    'more.cdeditor': 'CD Editor',
     'more.terminal': 'Terminal',
+
+    // CD Editor
+    'cdeditor.title': 'CD Library Editor',
+    'cdeditor.hint': 'Quick editing of slot, year, label and genre via dropdown.',
+    'cdeditor.slot': 'Slot',
+    'cdeditor.cdTitle': 'Title',
+    'cdeditor.artist': 'Artist',
+    'cdeditor.year': 'Year',
+    'cdeditor.label': 'Label',
+    'cdeditor.genre': 'Genre',
 
     // History
     'history.clear': 'Clear history',
