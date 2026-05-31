@@ -2286,9 +2286,9 @@ const CDEDITOR_LABELS = [
 ];
 
 function loadCDEditor() {
-  const body = document.getElementById('cdeditorBody');
+  const container = document.getElementById('cdeditorList');
   if (!library || library.length === 0) {
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px">${t('library.empty')}</td></tr>`;
+    container.innerHTML = `<div class="empty-state"><p>${t('library.empty')}</p></div>`;
     return;
   }
 
@@ -2306,7 +2306,6 @@ function loadCDEditor() {
   const currentYear = new Date().getFullYear();
   const allYears = [];
   for (let y = currentYear; y >= 1950; y--) allYears.push(String(y));
-  // add any years outside range from library
   for (const y of existingYears) { if (!allYears.includes(y)) allYears.push(y); }
   allYears.sort((a, b) => b - a);
 
@@ -2315,26 +2314,38 @@ function loadCDEditor() {
   const genreOpts = `<option value="">—</option>` + allGenres.map(g => `<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
 
   const sorted = [...library].sort((a, b) => a.slot - b.slot);
-  body.innerHTML = sorted.map(cd => {
-    const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
-    return `<tr data-slot="${cd.slot}">
-      <td>${cd.slot}</td>
-      <td title="${escAttr(cd.title||'')}">${escHtml(cd.title||'')}</td>
-      <td title="${escAttr(cd.artist||'')}">${escHtml(cd.artist||'')}</td>
-      <td><select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select></td>
-      <td><select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select></td>
-      <td><select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select></td>
-    </tr>`;
+  container.innerHTML = sorted.map(cd => {
+    return `<div class="cdeditor-item" data-slot="${cd.slot}">
+      <div class="cdeditor-row1">
+        <span class="cdeditor-slot">${cd.slot}</span>
+        <span class="cdeditor-title">${escHtml(cd.title || t('library.unknown'))}</span>
+        <span class="cdeditor-artist">${escHtml(cd.artist || '')}</span>
+      </div>
+      <div class="cdeditor-row2">
+        <div class="cdeditor-field">
+          <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
+          <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${yearOpts}</select>
+        </div>
+        <div class="cdeditor-field">
+          <span class="cdeditor-field-label">${t('cdeditor.label')}</span>
+          <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${labelOpts}</select>
+        </div>
+        <div class="cdeditor-field">
+          <span class="cdeditor-field-label">${t('cdeditor.genre')}</span>
+          <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorSave(this)">${genreOpts}</select>
+        </div>
+      </div>
+    </div>`;
   }).join('');
 
   // set current values
   for (const cd of sorted) {
-    const row = body.querySelector(`tr[data-slot="${cd.slot}"]`);
-    if (!row) continue;
+    const item = container.querySelector(`.cdeditor-item[data-slot="${cd.slot}"]`);
+    if (!item) continue;
     const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
-    row.querySelector('[data-field="year"]').value = yearVal;
-    row.querySelector('[data-field="label"]').value = cd.label || '';
-    row.querySelector('[data-field="genre"]').value = cd.genre || '';
+    item.querySelector('[data-field="year"]').value = yearVal;
+    item.querySelector('[data-field="label"]').value = cd.label || '';
+    item.querySelector('[data-field="genre"]').value = cd.genre || '';
   }
 }
 
@@ -2345,10 +2356,10 @@ async function cdeditorSave(sel) {
   try {
     await api(`/library/${slot}`, 'PUT', { [field]: value });
     sel.classList.add('changed');
-    sel.closest('tr').classList.add('cdeditor-saved');
+    sel.closest('.cdeditor-item').classList.add('cdeditor-saved');
     setTimeout(() => {
       sel.classList.remove('changed');
-      sel.closest('tr').classList.remove('cdeditor-saved');
+      sel.closest('.cdeditor-item').classList.remove('cdeditor-saved');
     }, 1500);
     // update local library cache
     const cd = library.find(c => c.slot == slot);
