@@ -9,6 +9,7 @@ const translations = {
     'nav.player': 'Player',
     'nav.library': 'Bibliothek',
     'nav.scanner': 'Scanner',
+    'nav.favorites': 'Favoriten',
     'nav.playlists': 'Playlists',
     'nav.more': 'Mehr',
 
@@ -422,6 +423,7 @@ const translations = {
     'nav.player': 'Player',
     'nav.library': 'Library',
     'nav.scanner': 'Scanner',
+    'nav.favorites': 'Favorites',
     'nav.playlists': 'Playlists',
     'nav.more': 'More',
 

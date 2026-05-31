@@ -146,10 +146,16 @@ body {
   display: flex; align-items: center; justify-content: center;
   gap: 16px; margin: 8px 0;
 }
-.np-actions .btn-icon {
+.btn-icon {
   background: none; border: none; cursor: pointer;
-  font-size: 1.3rem; color: var(--text-muted); padding: 4px;
+  font-size: 1.1rem; color: var(--text-dim); padding: 2px;
   transition: color var(--transition);
+}
+.btn-icon:hover { color: var(--heart); }
+.btn-fav.active { color: var(--heart); }
+
+.np-actions .btn-icon {
+  font-size: 1.3rem; color: var(--text-muted); padding: 4px;
 }
 .np-actions .btn-icon:hover, .np-actions .btn-icon.active { color: var(--red); }
 .star-rating {

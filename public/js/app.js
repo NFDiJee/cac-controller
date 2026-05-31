@@ -493,6 +493,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   event.currentTarget.classList.add('active');
   if (name === 'library') loadLibrary();
+  if (name === 'favorites') loadFavoritesPage();
   if (name === 'playlists') loadPlaylists();
   if (name === 'more') loadMoreData();
 }
@@ -500,7 +501,7 @@ function showPage(name) {
 function showPageDirect(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
-  const pages = ['player','library','scanner','playlists','more'];
+  const pages = ['player','library','favorites','playlists','more'];
   document.querySelectorAll('.nav-item').forEach((n, i) => {
     n.classList.toggle('active', pages.indexOf(name) === i);
   });
@@ -2080,9 +2081,9 @@ function showMoreTab(name) {
   document.querySelectorAll('#page-more .tab').forEach(t => t.classList.remove('active'));
   event.currentTarget.classList.add('active');
   if (name === 'history') loadHistory();
-  if (name === 'favorites') loadFavorites();
   if (name === 'ratings') loadRatings();
   if (name === 'stats') loadStats();
+  if (name === 'scanner') loadScannerInMore();
   if (name === 'settings') loadSettings();
   if (name === 'cdeditor') loadCDEditor();
 }
@@ -2115,10 +2116,14 @@ async function clearHistory() {
   catch (err) { toast(err.message, 'error'); }
 }
 
-async function loadFavorites() {
+async function loadFavoritesPage() {
+  renderFavorites(document.getElementById('favoritesPageList'));
+}
+
+async function renderFavorites(container) {
+  if (!container) return;
   try {
     const favs = await api('/favorites');
-    const container = document.getElementById('favoritesList');
     if (favs.length === 0) { container.innerHTML = `<div class="empty-state"><p>${t('favorites.empty')}</p></div>`; return; }
     container.innerHTML = favs.map(f => {
       const isTrack = f.track_number > 0;
@@ -2144,10 +2149,21 @@ async function loadFavorites() {
 async function removeFav(slot, track) {
   try {
     await api('/favorites/toggle', 'POST', { slot, track });
-    loadFavorites();
+    loadFavoritesPage();
     const state = playerStates[activePlayer];
     if (state?.disc === slot && state?.track === track) updateFavButton(slot, track);
   } catch (err) { toast(err.message, 'error'); }
+}
+
+function loadScannerInMore() {
+  const container = document.getElementById('scannerContent');
+  const scannerPage = document.getElementById('page-scanner');
+  if (container && scannerPage && !container.hasChildNodes()) {
+    // Move scanner content into More tab
+    while (scannerPage.children.length > 1) {
+      container.appendChild(scannerPage.children[1]);
+    }
+  }
 }
 
 function starsHtml(rating) {
