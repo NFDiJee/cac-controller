@@ -623,7 +623,7 @@ textarea.form-input { min-height: 80px; resize: vertical; }
 }
 .progress-bar {
   width: 100%; height: 8px;
-  background: var(--bg-input);
+  background: var(--bg);
   border-radius: 4px;
   overflow: hidden;
   margin: 8px 0;
@@ -860,6 +860,20 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   gap: 8px;
   margin-top: 10px;
 }
+
+/* ── MusicBrainz Results ── */
+.brainz-item {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.brainz-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+.brainz-title { font-weight: 600; }
+.brainz-artist { font-size: 0.85rem; color: var(--text-dim); }
+.brainz-info { font-size: 0.78rem; color: var(--accent); margin-top: 2px; }
 
 /* ── Play Statistics ── */
 .stats-tabs {
