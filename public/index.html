@@ -23,6 +23,9 @@
     <div class="player-tabs">
       <button class="player-tab active" data-player="1" data-i18n="player.player1">Player 1</button>
       <button class="player-tab" data-player="2" data-i18n="player.player2">Player 2</button>
+      <button class="btn-power" id="btnPower" onclick="togglePower()" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M12 2v10"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg>
+      </button>
     </div>
 
     <div class="now-playing" id="nowPlaying">
@@ -53,12 +56,6 @@
         <div class="playlist-banner-name" id="playlistBannerName"></div>
       </div>
       <button class="btn btn-sm btn-danger" onclick="stopPlaylist()" data-i18n="playlists.end">Beenden</button>
-    </div>
-
-    <div class="power-row" id="powerRow" style="display:none">
-      <button class="btn-power" id="btnPower" onclick="togglePower()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M12 2v10"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg>
-      </button>
     </div>
 
     <div class="controls">

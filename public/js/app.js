@@ -2475,17 +2475,15 @@ function generateApiKey() {
 let _powerOn = false;
 
 async function checkPowerStatus() {
+  const btn = document.getElementById('btnPower');
   try {
     const status = await api('/power/status');
-    if (!status.configured) {
-      document.getElementById('powerRow').style.display = 'none';
-      return;
-    }
+    if (!status.configured) { btn.style.display = 'none'; return; }
     _powerOn = status.on;
     updatePowerUI();
-    document.getElementById('powerRow').style.display = '';
+    btn.style.display = '';
   } catch {
-    document.getElementById('powerRow').style.display = 'none';
+    btn.style.display = 'none';
   }
 }
 
