@@ -2287,22 +2287,138 @@ const CDEDITOR_LABELS = [
 
 let _cdeditorYearOpts = '', _cdeditorLabelOpts = '', _cdeditorGenreOpts = '';
 
-// ── Typeahead for selects ──
-let _typeaheadStr = '', _typeaheadTimer = null;
-document.addEventListener('keydown', e => {
-  const sel = e.target;
-  if (sel.tagName !== 'SELECT' || !sel.classList.contains('cdeditor-select')) return;
-  if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
-  e.preventDefault();
-  clearTimeout(_typeaheadTimer);
-  _typeaheadStr += e.key.toLowerCase();
-  _typeaheadTimer = setTimeout(() => { _typeaheadStr = ''; }, 1000);
-  for (let i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value && sel.options[i].value !== '__custom__' &&
-        sel.options[i].textContent.toLowerCase().startsWith(_typeaheadStr)) {
-      sel.selectedIndex = i;
-      break;
+// ── Combobox for selects ──
+let _cdeComboData = { year: [], label: [], genre: [] };
+
+function cdeComboCreate(field, slot) {
+  return `<div class="cde-combo" data-field="${field}" data-slot="${slot}">
+    <div class="cde-combo-display" onclick="cdeComboToggle(this)" tabindex="0" onkeydown="cdeComboKey(event,this)">—</div>
+    <div class="cde-combo-drop">
+      <div class="cde-combo-search"><input type="text" placeholder="${t('library.search')}" oninput="cdeComboFilter(this)"></div>
+      <div class="cde-combo-opts"></div>
+    </div>
+  </div>`;
+}
+
+function cdeComboSetValue(combo, value) {
+  const display = combo.querySelector('.cde-combo-display');
+  display.textContent = value || '—';
+  combo.dataset.value = value || '';
+}
+
+function cdeComboRenderOpts(combo) {
+  const field = combo.dataset.field;
+  const currentVal = combo.dataset.value || '';
+  const opts = combo.querySelector('.cde-combo-opts');
+  const searchVal = (combo.querySelector('.cde-combo-search input')?.value || '').toLowerCase();
+  const items = _cdeComboData[field] || [];
+  const filtered = searchVal ? items.filter(v => v.toLowerCase().includes(searchVal)) : items;
+
+  let html = `<div class="cde-combo-opt${!currentVal ? ' selected' : ''}" data-val="" onclick="cdeComboSelect(this)">—</div>`;
+  html += filtered.map(v =>
+    `<div class="cde-combo-opt${v === currentVal ? ' selected' : ''}" data-val="${escAttr(v)}" onclick="cdeComboSelect(this)">${escHtml(v)}</div>`
+  ).join('');
+  html += `<div class="cde-combo-opt custom-opt" data-val="__custom__" onclick="cdeComboSelect(this)">+ ${t('cdeditor.custom')}</div>`;
+  opts.innerHTML = html;
+
+  // scroll selected into view
+  const sel = opts.querySelector('.selected');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function cdeComboToggle(display) {
+  const combo = display.closest('.cde-combo');
+  const drop = combo.querySelector('.cde-combo-drop');
+  const isOpen = drop.classList.contains('open');
+
+  // close all others first
+  document.querySelectorAll('.cde-combo-drop.open').forEach(d => d.classList.remove('open'));
+
+  if (!isOpen) {
+    drop.classList.add('open');
+    const input = drop.querySelector('input');
+    input.value = '';
+    cdeComboRenderOpts(combo);
+    input.focus();
+  }
+}
+
+function cdeComboFilter(input) {
+  const combo = input.closest('.cde-combo');
+  cdeComboRenderOpts(combo);
+}
+
+function cdeComboKey(e, display) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cdeComboToggle(display); }
+}
+
+function cdeComboSelect(optEl) {
+  const combo = optEl.closest('.cde-combo');
+  const val = optEl.dataset.val;
+  const field = combo.dataset.field;
+  const slot = combo.dataset.slot;
+  const drop = combo.querySelector('.cde-combo-drop');
+  drop.classList.remove('open');
+
+  if (val === '__custom__') {
+    cdeComboCustom(combo);
+    return;
+  }
+  cdeComboSetValue(combo, val);
+  cdeComboSave(combo);
+}
+
+function cdeComboCustom(combo) {
+  const field = combo.dataset.field;
+  const display = combo.querySelector('.cde-combo-display');
+  const oldVal = combo.dataset.value || '';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'cde-combo-display cdeditor-custom-input';
+  input.style.cursor = 'text';
+  display.style.display = 'none';
+  combo.insertBefore(input, display);
+  input.focus();
+
+  const finish = (save) => {
+    const val = input.value.trim();
+    input.remove();
+    display.style.display = '';
+    if (save && val) {
+      cdeditorAddCustomOption(field, val);
+      cdeComboSetValue(combo, val);
+      cdeComboSave(combo);
     }
+  };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+function cdeComboSave(combo) {
+  const slot = combo.dataset.slot;
+  const field = combo.dataset.field;
+  const value = combo.dataset.value || '';
+  const display = combo.querySelector('.cde-combo-display');
+  api(`/library/${slot}`, 'PUT', { [field]: value }).then(() => {
+    display.classList.add('changed');
+    combo.closest('.cdeditor-item').classList.add('cdeditor-saved');
+    setTimeout(() => {
+      display.classList.remove('changed');
+      combo.closest('.cdeditor-item').classList.remove('cdeditor-saved');
+    }, 1500);
+    const cd = library.find(c => c.slot == slot);
+    if (cd) cd[field] = value;
+  }).catch(err => toast(err.message, 'error'));
+}
+
+// close combos on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cde-combo')) {
+    document.querySelectorAll('.cde-combo-drop.open').forEach(d => d.classList.remove('open'));
   }
 });
 
@@ -2331,11 +2447,10 @@ function loadCDEditor() {
   for (const y of existingYears) { if (!allYears.includes(y)) allYears.push(y); }
   allYears.sort((a, b) => b - a);
 
-  // build option strings (with custom entry at top)
-  const customLabel = t('cdeditor.custom');
-  _cdeditorYearOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allYears.map(y => `<option value="${y}">${y}</option>`).join('');
-  _cdeditorLabelOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allLabels.map(l => `<option value="${escAttr(l)}">${escHtml(l)}</option>`).join('');
-  _cdeditorGenreOpts = `<option value="">—</option><option value="__custom__">+ ${customLabel}</option>` + allGenres.map(g => `<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
+  // store combo data for combobox rendering
+  _cdeComboData.year = allYears;
+  _cdeComboData.label = allLabels;
+  _cdeComboData.genre = allGenres;
 
   // populate filter dropdowns
   fillFilterSelect('cdeditorFilterYear', t('library.allYears'), [...existingYears].sort((a,b) => b-a));
@@ -2371,15 +2486,15 @@ function renderCDEditorList() {
         <div class="cdeditor-row2">
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.year')}</span>
-            <select class="cdeditor-select" data-field="year" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorYearOpts}</select>
+            ${cdeComboCreate('year', cd.slot)}
           </div>
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.label')}</span>
-            <select class="cdeditor-select" data-field="label" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorLabelOpts}</select>
+            ${cdeComboCreate('label', cd.slot)}
           </div>
           <div class="cdeditor-field">
             <span class="cdeditor-field-label">${t('cdeditor.genre')}</span>
-            <select class="cdeditor-select" data-field="genre" data-slot="${cd.slot}" onchange="cdeditorOnChange(this)">${_cdeditorGenreOpts}</select>
+            ${cdeComboCreate('genre', cd.slot)}
           </div>
         </div>
         <input type="text" class="cdeditor-text-input cdeditor-notes-input" data-field="notes" data-slot="${cd.slot}" value="${escAttr(cd.notes||'')}" placeholder="${t('cdeditor.notes')}" onchange="cdeditorSaveText(this)">
@@ -2387,14 +2502,16 @@ function renderCDEditorList() {
     </div>`;
   }).join('');
 
-  // set current values for selects
+  // set current values for combos
   for (const cd of filtered) {
     const item = container.querySelector(`.cdeditor-item[data-slot="${cd.slot}"]`);
     if (!item) continue;
     const yearVal = cd.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
-    item.querySelector('[data-field="year"]').value = yearVal;
-    item.querySelector('[data-field="label"]').value = cd.label || '';
-    item.querySelector('[data-field="genre"]').value = cd.genre || '';
+    item.querySelectorAll('.cde-combo').forEach(combo => {
+      const f = combo.dataset.field;
+      if (f === 'year') cdeComboSetValue(combo, yearVal);
+      else cdeComboSetValue(combo, cd[f] || '');
+    });
   }
 }
 
@@ -2449,74 +2566,31 @@ function resetCDEditorFilters() {
   renderCDEditorList();
 }
 
-function cdeditorOnChange(sel) {
-  if (sel.value === '__custom__') {
-    const field = sel.dataset.field;
-    const cd = library.find(c => c.slot == sel.dataset.slot);
-
-    // restore select to previous value
-    if (field === 'year') {
-      sel.value = cd?.year ? ((cd.year+'').match(/(\d{4})/)||[])[1] || '' : '';
-    } else {
-      sel.value = cd?.[field] || '';
-    }
-
-    // create inline input replacing the select
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'cdeditor-select cdeditor-custom-input';
-    input.placeholder = t('cdeditor.enterCustom', '');
-    input.dataset.field = field;
-    input.dataset.slot = sel.dataset.slot;
-    sel.style.display = 'none';
-    sel.parentNode.appendChild(input);
-    input.focus();
-
-    const finish = (save) => {
-      const val = input.value.trim();
-      input.remove();
-      sel.style.display = '';
-      if (save && val) {
-        cdeditorAddCustomOption(field, val);
-        sel.value = val;
-        cdeditorSave(sel);
-      }
-    };
-
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-    });
-    input.addEventListener('blur', () => finish(true));
-  } else {
-    cdeditorSave(sel);
-  }
-}
-
 function cdeditorAddCustomOption(field, val) {
-  // add to ALL selects of this field, sorted
-  document.querySelectorAll(`.cdeditor-select[data-field="${field}"]`).forEach(sel => {
-    cdeditorInsertSorted(sel, val, 2); // skip "—" and "+ Custom"
-  });
-  // also add to filter dropdown
+  // add to combo data (sorted) so all future renders include it
+  if (!_cdeComboData[field].includes(val)) {
+    _cdeComboData[field].push(val);
+    _cdeComboData[field].sort((a, b) => field === 'year' ? b - a : a.localeCompare(b));
+  }
+  // add to filter dropdown
   const filterIds = { year: 'cdeditorFilterYear', label: 'cdeditorFilterLabel', genre: 'cdeditorFilterGenre' };
   const filterSel = document.getElementById(filterIds[field]);
-  if (filterSel) cdeditorInsertSorted(filterSel, val, 1); // skip "All..."
-}
-
-function cdeditorInsertSorted(sel, val, skipCount) {
-  if ([...sel.options].some(o => o.value === val)) return;
-  const opt = document.createElement('option');
-  opt.value = val;
-  opt.textContent = val;
-  const valLower = val.toLowerCase();
-  for (let i = skipCount; i < sel.options.length; i++) {
-    if (sel.options[i].textContent.toLowerCase() > valLower) {
-      sel.insertBefore(opt, sel.options[i]);
-      return;
+  if (filterSel && ![...filterSel.options].some(o => o.value === val)) {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val;
+    // insert sorted
+    const valLower = val.toLowerCase();
+    let inserted = false;
+    for (let i = 1; i < filterSel.options.length; i++) {
+      if (filterSel.options[i].textContent.toLowerCase() > valLower) {
+        filterSel.insertBefore(opt, filterSel.options[i]);
+        inserted = true;
+        break;
+      }
     }
+    if (!inserted) filterSel.appendChild(opt);
   }
-  sel.appendChild(opt);
 }
 
 function cdeditorManageField(field) {
@@ -2595,24 +2669,6 @@ async function cdeditorDeleteValue(field, value) {
     await loadLibrary();
     loadCDEditor();
     cdeditorManageField(field);
-  } catch (err) { toast(err.message, 'error'); }
-}
-
-async function cdeditorSave(sel) {
-  const slot = sel.dataset.slot;
-  const field = sel.dataset.field;
-  const value = sel.value;
-  try {
-    await api(`/library/${slot}`, 'PUT', { [field]: value });
-    sel.classList.add('changed');
-    sel.closest('.cdeditor-item').classList.add('cdeditor-saved');
-    setTimeout(() => {
-      sel.classList.remove('changed');
-      sel.closest('.cdeditor-item').classList.remove('cdeditor-saved');
-    }, 1500);
-    // update local library cache
-    const cd = library.find(c => c.slot == slot);
-    if (cd) cd[field] = value;
   } catch (err) { toast(err.message, 'error'); }
 }
 

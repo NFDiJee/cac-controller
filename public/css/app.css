@@ -1168,6 +1168,84 @@ textarea.form-input { min-height: 80px; resize: vertical; }
   font-size: 0.78rem;
   appearance: auto;
 }
+/* Combobox */
+.cde-combo {
+  position: relative;
+  width: 100%;
+}
+.cde-combo-display {
+  width: 100%;
+  padding: 4px 22px 4px 6px;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+.cde-combo-display::after {
+  content: '\25BE';
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+.cde-combo-display:hover { border-color: var(--border-light); }
+.cde-combo-display.changed { border-color: var(--green); background: var(--green-dim); }
+.cde-combo-drop {
+  display: none;
+  position: absolute;
+  left: 0; right: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  z-index: 200;
+  box-shadow: var(--shadow);
+  max-height: 220px;
+  overflow: hidden;
+  flex-direction: column;
+}
+.cde-combo-drop.open { display: flex; }
+.cde-combo-search {
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cde-combo-search input {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  outline: none;
+}
+.cde-combo-search input:focus { border-color: var(--accent); }
+.cde-combo-opts {
+  overflow-y: auto;
+  flex: 1;
+}
+.cde-combo-opt {
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cde-combo-opt:hover, .cde-combo-opt.highlight { background: var(--accent-dim); color: var(--accent); }
+.cde-combo-opt.selected { color: var(--green); font-weight: 600; }
+.cde-combo-opt.custom-opt { color: var(--accent); font-style: italic; border-top: 1px solid var(--border); }
 .cdeditor-slot-input {
   width: 52px;
   flex-shrink: 0;
