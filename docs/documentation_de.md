@@ -64,13 +64,72 @@ Die Kommunikation erfolgt ueber RS-232C mit folgenden Parametern:
 - **Terminator**: Carriage Return (`\r`, ASCII 0x0D)
 - **Maximale Befehlslaenge**: 20 Zeichen
 
-Physikalischer Anschluss: 15-poliger D-Sub-Stecker (RS-232C) am Wechsler, verbunden ueber einen USB-zu-Seriell-Adapter mit dem Raspberry Pi.
+> **CAC-V3000 DIP-Schalter:** DIP-Schalter 3 muss auf **ON** stehen fuer 9600 Baud. Alle DIP-Schalter OFF = 4800 Baud.
+
+| DIP 1 | DIP 2 | DIP 3 | DIP 4 | Baudrate |
+|-------|-------|-------|-------|----------|
+| OFF | OFF | OFF | OFF | 4800 bps |
+| OFF | OFF | **ON** | OFF | **9600 bps** |
+
+#### Variante A: Externer USB-Seriell-Adapter
+
+Physikalischer Anschluss: 15-poliger D-Sub-Stecker (RS-232C) am Wechsler, verbunden ueber einen USB-zu-Seriell-Adapter mit dem Raspberry Pi. Der Port wird als `/dev/ttyUSB0` erkannt.
+
+#### Variante B: Interne TTL-Direktverbindung
+
+Bei internem Einbau des RPi Zero W wird das serielle Signal direkt auf TTL-Ebene am **Eingang des RSIF-Boards** abgegriffen (Uebergabe vom MCDR-Board). Beide Boards befinden sich unter der **rechten Seitenabdeckung** (von vorne gesehen).
+
+![RSIF Board](RSIF.jpg) ![MCDR Board](MCDR.jpg)
+
+Da das CAC-V3000 intern mit 5V TTL arbeitet und der RPi-GPIO maximal 3.3V vertraegt, ist ein Spannungsteiler am RXD-Eingang erforderlich:
+
+```
+CAC RSIF "Tx" (5V TTL)
+        │
+       [1 kΩ]  ← R1
+        ├──────────→ RPi GPIO15 / RXD (Pin 22)   Spannung: 5V × 2/(1+2) = 3.33V ✓
+       [2 kΩ]  ← R2
+        │
+       GND
+
+RPi GPIO14 / TXD (Pin 8) ──→ CAC RSIF "Rx"    3.3V > 2.0V TTL-Schwelle ✓
+RPi GND (Pin 14)          ──→ CAC RSIF "GND"
+```
+
+Der serielle Port ist `/dev/ttyAMA0`. In `/boot/config.txt`:
+```
+enable_uart=1
+dtoverlay=disable-bt
+```
+In `/boot/cmdline.txt` den Eintrag `console=serial0,115200` entfernen.
 
 ### 1.3 Empfohlene Hardware
+
+#### Variante A: Externer Anschluss
 
 - **Raspberry Pi**: Pi 3, Pi 4, Pi 5 oder Zero 2 W (auch Pi Zero W moeglich, aber langsamer)
 - **USB-Seriell-Adapter**: FTDI FT232R, Prolific PL2303 oder CH340
 - **Betriebssystem**: Raspberry Pi OS (Debian Bookworm oder neuer)
+
+#### Variante B: Interner Einbau (RPi Zero W)
+
+Der Raspberry Pi Zero W wird vollstaendig im Gehaeuse des CAC-V3000 verbaut:
+
+- **Stromversorgung**: HLK-PM01 AC-DC-Wandler (230V→5V, 600mA), abgegriffen an der Kaltgeraetebuchse (AC Inlet, vor dem Netzschalter), abgesichert mit T500mA Sicherung
+- **Seriell**: Direkter TTL-Anschluss am RSIF-Board-Eingang (Uebergabe vom MCDR-Board), Spannungsteiler 1kΩ/2kΩ fuer 5V→3.3V Pegelanpassung
+- **Relais**: JQC-3FF-S-Z 5V Relaismodul an GPIO17 zum Ein-/Ausschalten des CAC (Active HIGH, 10kΩ Pull-Down), `gpio=17=op,dl` in `/boot/config.txt` fuer sicheren Boot-Zustand
+- **Netzwerk**: Mini-USB auf USB-A-Buchse Adapter + **TP-Link TL-WN722N** USB-WLAN-Stick mit SMA-Female-Buchse, per SMA-Kabel auf eine externe Antenne weitergeleitet (das Metallgehaeuse wirkt als Faradayscher Kaefig)
+
+![TP-Link TL-WN722N](TL-WN722N.jpg)
+
+| Pin | GPIO | Funktion | Verbindung |
+|-----|------|----------|------------|
+| Pin 2 | 5V | Stromversorgung | HLK-PM01 "+" / Relaismodul VCC |
+| Pin 6 | GND | Masse | HLK-PM01 "-" / Relaismodul GND |
+| Pin 8 | GPIO14 TXD | Seriell Senden | RSIF "Rx" (direkt) |
+| Pin 11 | GPIO17 | Relais Steuerung | Relaismodul IN (+ 10k Pull-Down) |
+| Pin 14 | GND | Seriell Masse | RSIF "GND" |
+| Pin 22 | GPIO15 RXD | Seriell Empfangen | RSIF "Tx" (ueber 1k/2k Teiler) |
 
 ---
 
@@ -263,6 +322,7 @@ Der Parser erkennt automatisch: Fehlercodes, Job-Status, Player-Mode, Disc-Numme
 
 Verwaltet die physische Verbindung zum Wechsler:
 
+- **Serielle Port-Erkennung**: Die Einstellungs-UI bietet ein Dropdown-Menue mit automatischer Erkennung verfuegbarer serieller Ports (ueber einen Aktualisieren-Button), anstatt eine manuelle Pfadeingabe zu erfordern
 - **Verbindungsmanagement**: Oeffnen, Schliessen, automatische Wiederverbindung alle 5 Sekunden
 - **Befehlsqueues**: Separate Queue pro Player (1 und 2), mit 200ms Abstand zwischen Befehlen
 - **Prioritaetsbefehle**: `sendPriority()` fuer zeitkritische Befehle (wird vorne in die Queue eingefuegt)

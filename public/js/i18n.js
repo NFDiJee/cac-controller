@@ -400,11 +400,6 @@ const translations = {
     'settings.nodeRoomPh': 'z.B. Wohnzimmer',
     'settings.nodeApiKey': 'API-Key',
     'settings.nodeGenKey': 'Generieren',
-    'settings.gpioTitle': 'GPIO / Relais',
-    'settings.gpioHint': 'GPIO-Pin fuer das Relais zum Ein-/Ausschalten des CAC. Leer lassen = deaktiviert. Standard: 17.',
-    'settings.gpioPin': 'GPIO-Pin (BCM)',
-    'power.on': 'CAC einschalten',
-    'power.off': 'CAC ausschalten',
 
     // Terminal
     'terminal.title': 'Serielles Terminal',
@@ -823,11 +818,6 @@ const translations = {
     'settings.nodeRoomPh': 'e.g. Living Room',
     'settings.nodeApiKey': 'API Key',
     'settings.nodeGenKey': 'Generate',
-    'settings.gpioTitle': 'GPIO / Relay',
-    'settings.gpioHint': 'GPIO pin for the relay to power the CAC on/off. Leave empty = disabled. Default: 17.',
-    'settings.gpioPin': 'GPIO Pin (BCM)',
-    'power.on': 'Power on CAC',
-    'power.off': 'Power off CAC',
 
     // Terminal
     'terminal.title': 'Serial Terminal',

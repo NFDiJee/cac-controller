@@ -202,26 +202,6 @@ body {
   font-size: 0.85rem; font-weight: 600; color: var(--text);
 }
 
-/* ── Power Button ── */
-.btn-power {
-  width: 36px; height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--red);
-  background: var(--red-dim);
-  color: var(--red);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition);
-  -webkit-tap-highlight-color: transparent;
-  margin-left: auto;
-}
-.btn-power:hover { border-color: var(--red); color: var(--red); }
-.btn-power.on {
-  color: var(--green);
-  border-color: var(--green);
-  background: var(--green-dim);
-}
-
 /* ── Player Controls ── */
 .controls {
   display: flex; align-items: center; justify-content: center;

@@ -98,12 +98,29 @@ Each CAC Controller instance runs as a standalone **Node**. An optional **Hub** 
 | CAC-V5000 | 500 CDs | 2 | 9600 / 4800 | Yes | Yes |
 | CAC-V180M | 18 CDs | 1 | 4800 | No | No |
 
+> **CAC-V3000 DIP Switch:** DIP switch 3 must be set to **ON** for 9600 baud. All DIP switches OFF = 4800 baud.
+
 ### Hardware Requirements
+
+#### Option A: External USB-Serial Adapter
 
 - **Raspberry Pi** (Zero W, Zero 2 W, 3, 4, or 5) or any Linux system
 - **USB-to-Serial adapter** (RS-232C, e.g., FTDI FT232R or similar)
 - **Serial cable** with 15-pin D-Sub connector (RS-232C) to the Pioneer CAC changer
 - **Network** connection (WLAN or Ethernet)
+
+#### Option B: Internal RPi Zero W Integration
+
+The Raspberry Pi Zero W can be mounted inside the CAC chassis for a fully integrated solution:
+
+- **Power**: HLK-PM01 AC-DC converter (230V→5V, 600mA) tapped from the AC inlet before the power switch, with T500mA fuse
+- **Serial**: Direct TTL connection at the **RSIF board input** (handoff from MCDR board) — both boards are under the **right side cover** (viewed from front). Voltage divider (1kΩ/2kΩ) for 5V→3.3V level shifting on RXD; TXD (3.3V) connects directly (5V TTL threshold = 2.0V)
+- **Power Control**: JQC-3FF-S-Z 5V relay module on GPIO17 to switch the CAC power (Active HIGH, 10kΩ pull-down)
+- **Network**: Mini USB to USB-A female adapter + **TP-Link TL-WN722N** USB WiFi stick with SMA female connector, routed via SMA cable to an external antenna (the metal chassis acts as a Faraday cage)
+
+See the [detailed documentation](docs/documentation_en.md) for wiring diagrams and pin assignments.
+
+![RSIF Board](docs/RSIF.jpg) ![MCDR Board](docs/MCDR.jpg) ![TL-WN722N](docs/TL-WN722N.jpg)
 
 ### Software Requirements
 
@@ -137,7 +154,7 @@ All settings are configurable via the web UI under **More > Settings**:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Serial Port | `/dev/ttyUSB0` | Path to the USB-serial adapter |
+| Serial Port | `/dev/ttyUSB0` | Path to the serial port (auto-detected dropdown in settings UI) |
 | Baud Rate | `9600` | 9600 for V3000/V3200/V5000, 4800 for V180M |
 | Model | `CAC-V3000` | Your Pioneer changer model |
 | Max Discs | `300` | Maximum slot count (300 or 500) |

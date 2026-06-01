@@ -148,8 +148,8 @@ Pruefen: `http://<PI_IP>:3000`
 
 Im Browser unter **Mehr > Einstellungen**:
 
-1. **Serieller Port** - Standard: `/dev/ttyUSB0`
-2. **Baudrate** - `9600` fuer V3000/V3200/V5000, `4800` fuer V180M
+1. **Serieller Port** - Auswahl per Dropdown mit automatischer Erkennung verfuegbarer Ports (Aktualisieren-Button). Standard: `/dev/ttyUSB0` (extern) oder `/dev/ttyAMA0` (intern)
+2. **Baudrate** - `9600` fuer V3000/V3200/V5000, `4800` fuer V180M. **Hinweis CAC-V3000:** DIP-Schalter 3 muss auf **ON** stehen fuer 9600 Baud
 3. **Modell** - Dein Pioneer-Modell auswaehlen
 4. **Max. Discs** - 300 (V3000/V3200) oder 500 (V5000) oder 18 (V180M)
 5. **Sprache** - Automatisch, Deutsch oder English

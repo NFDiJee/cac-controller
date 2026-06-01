@@ -28,7 +28,6 @@ let _selectedSlots = new Set();
   connectWebSocket();
   loadLibrary();
   loadPlayModes();
-  checkPowerStatus();
 
   // Set language selector to stored preference
   const langSel = document.getElementById('settLanguage');
@@ -2422,10 +2421,41 @@ function renderStatsInventory() {
   return html;
 }
 
+async function refreshSerialPorts(selectedPort) {
+  const select = document.getElementById('settSerialPort');
+  const current = selectedPort || select.value;
+  try {
+    const ports = await api('/serial/ports');
+    select.innerHTML = '';
+    const seen = new Set();
+    for (const p of ports) {
+      seen.add(p.path);
+      const opt = document.createElement('option');
+      opt.value = p.path;
+      const label = p.manufacturer ? `${p.path} (${p.manufacturer})` : p.path;
+      opt.textContent = label;
+      select.appendChild(opt);
+    }
+    // Add current setting if not in list (e.g. disconnected device)
+    if (current && !seen.has(current)) {
+      const opt = document.createElement('option');
+      opt.value = current;
+      opt.textContent = `${current} (nicht verbunden)`;
+      select.appendChild(opt);
+    }
+    if (current) select.value = current;
+  } catch (err) {
+    console.error('Failed to list serial ports:', err);
+    if (current) {
+      select.innerHTML = `<option value="${current}">${current}</option>`;
+    }
+  }
+}
+
 async function loadSettings() {
   try {
     const settings = await api('/settings');
-    document.getElementById('settSerialPort').value = settings.serial_port || '/dev/ttyUSB0';
+    await refreshSerialPorts(settings.serial_port || '/dev/ttyAMA0');
     document.getElementById('settBaudRate').value = settings.baud_rate || '9600';
     document.getElementById('settModel').value = settings.model || 'CAC-V3000';
     document.getElementById('settMaxDiscs').value = settings.max_discs || '300';
@@ -2437,7 +2467,6 @@ async function loadSettings() {
     document.getElementById('settNodeRoom').value = settings.node_room || '';
     document.getElementById('settNodeApiKey').value = settings.node_api_key || '';
     document.getElementById('settStatsMinSeconds').value = settings.stats_min_seconds || '30';
-    document.getElementById('settGpioPin').value = settings.gpio_relay_pin || '';
     document.getElementById('settLanguage').value = getStoredLanguagePref();
   } catch (err) { console.error(err); }
 }
@@ -2457,7 +2486,6 @@ async function saveSettings() {
       node_room: document.getElementById('settNodeRoom').value,
       node_api_key: document.getElementById('settNodeApiKey').value,
       stats_min_seconds: document.getElementById('settStatsMinSeconds').value,
-      gpio_relay_pin: document.getElementById('settGpioPin').value,
       language: document.getElementById('settLanguage').value,
     });
     toast(t('settings.saved'), 'success');
@@ -2469,39 +2497,6 @@ function generateApiKey() {
   let key = '';
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('settNodeApiKey').value = key;
-}
-
-// ── Power (GPIO Relay) ──
-let _powerOn = false;
-
-async function checkPowerStatus() {
-  const btn = document.getElementById('btnPower');
-  try {
-    const status = await api('/power/status');
-    if (!status.configured) { btn.style.display = 'none'; return; }
-    _powerOn = status.on;
-    updatePowerUI();
-    btn.style.display = '';
-  } catch {
-    btn.style.display = 'none';
-  }
-}
-
-function updatePowerUI() {
-  const btn = document.getElementById('btnPower');
-  btn.classList.toggle('on', _powerOn);
-  btn.title = _powerOn ? t('power.off') : t('power.on');
-}
-
-async function togglePower() {
-  try {
-    const endpoint = _powerOn ? '/power/off' : '/power/on';
-    const result = await api(endpoint, 'POST');
-    _powerOn = result.on;
-    updatePowerUI();
-  } catch (err) {
-    toast(err.message, 'error');
-  }
 }
 
 // ── Backup ──

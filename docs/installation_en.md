@@ -82,6 +82,8 @@ The CAC Controller is a Node.js web application that runs on a Raspberry Pi and 
 - **Network Connection** — WiFi or Ethernet
 - **Pioneer CAC Changer** — Powered on and operational
 
+> **CAC-V3000 DIP Switch:** DIP switch 3 must be set to **ON** for 9600 baud. All DIP switches OFF = 4800 baud.
+
 ### Software
 
 - **Raspberry Pi OS** — Lite or Desktop (Debian Bookworm or newer recommended)
@@ -284,6 +286,58 @@ echo -ne "1PS?X\r" > /dev/ttyUSB0
 timeout 3 cat /dev/ttyUSB0
 # Should return a response like "1PS..."
 ```
+
+---
+
+## 6b. Alternative: Internal Installation (RPi Zero W)
+
+Instead of an external USB-serial adapter, the Raspberry Pi Zero W can be fully mounted inside the CAC-V3000 chassis. This variant uses an internal TTL direct connection and power supply.
+
+### Power Supply
+
+- **HLK-PM01** AC-DC converter (230V→5V, 600mA)
+- Tapped from the **AC inlet** (before the power switch)
+- Protected with **T500mA** fuse
+- Output: RPi Pin 2 (5V) and Pin 6 (GND)
+
+### Serial Connection (TTL)
+
+TTL signals are tapped at the **RSIF board input** (handoff from MCDR board). Both boards are located under the **right side cover** (viewed from front).
+
+![RSIF Board](RSIF.jpg) ![MCDR Board](MCDR.jpg)
+
+**Level shifting** (5V TTL → 3.3V RPi):
+- **RPi RXD (Pin 22)**: Voltage divider 1kΩ (top) / 2kΩ (bottom) = 3.33V
+- **RPi TXD (Pin 8)**: Direct connection (3.3V > 2.0V TTL threshold)
+- **GND (Pin 14)**: Common ground
+
+Serial port: `/dev/ttyAMA0`
+
+In `/boot/config.txt`:
+```
+enable_uart=1
+dtoverlay=disable-bt
+gpio=17=op,dl
+```
+
+Remove `console=serial0,115200` from `/boot/cmdline.txt`.
+
+### Power Switch Relay (optional)
+
+- **JQC-3FF-S-Z** 5V relay module on **GPIO17** (Pin 11)
+- Active HIGH, **10kΩ pull-down** on GPIO pin
+- Bridges the original power switch (wired in parallel)
+- The original switch remains functional as a manual override
+
+### Network Connection
+
+The metal chassis acts as a Faraday cage and blocks the internal WiFi signal.
+
+**Recommended solution:** Mini USB to USB-A female adapter + **TP-Link TL-WN722N** USB WiFi stick with SMA female connector. The antenna is routed externally via SMA cable.
+
+![TP-Link TL-WN722N](TL-WN722N.jpg)
+
+**Alternative:** USB Ethernet adapter (ASIX AX88179 or Realtek RTL8153) via OTG adapter.
 
 ---
 

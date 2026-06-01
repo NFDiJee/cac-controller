@@ -82,6 +82,8 @@ Der CAC Controller ist eine Node.js-Webanwendung, die auf einem Raspberry Pi lae
 - **Netzwerkverbindung** — WLAN oder Ethernet
 - **Pioneer CAC Wechsler** — Eingeschaltet und betriebsbereit
 
+> **CAC-V3000 DIP-Schalter:** DIP-Schalter 3 muss auf **ON** stehen fuer 9600 Baud. Alle DIP-Schalter OFF = 4800 Baud.
+
 ### Software
 
 - **Raspberry Pi OS** — Lite oder Desktop (Debian Bookworm oder neuer empfohlen)
@@ -284,6 +286,58 @@ echo -ne "1PS?X\r" > /dev/ttyUSB0
 timeout 3 cat /dev/ttyUSB0
 # Sollte eine Antwort wie "1PS..." zurueckgeben
 ```
+
+---
+
+## 6b. Alternative: Interner Einbau (RPi Zero W)
+
+Statt eines externen USB-Seriell-Adapters kann der Raspberry Pi Zero W vollstaendig im Gehaeuse des CAC-V3000 verbaut werden. Diese Variante verwendet eine interne TTL-Direktverbindung und Stromversorgung.
+
+### Stromversorgung
+
+- **HLK-PM01** AC-DC-Wandler (230V→5V, 600mA)
+- Abgegriffen an der **Kaltgeraetebuchse** (AC Inlet, vor dem Netzschalter)
+- Absicherung mit **T500mA** Sicherung
+- Ausgang: RPi Pin 2 (5V) und Pin 6 (GND)
+
+### Serielle Verbindung (TTL)
+
+Die TTL-Signale werden am **Eingang des RSIF-Boards** abgegriffen (Uebergabe vom MCDR-Board). Beide Boards befinden sich unter der **rechten Seitenabdeckung** (von vorne gesehen).
+
+![RSIF Board](RSIF.jpg) ![MCDR Board](MCDR.jpg)
+
+**Pegelanpassung** (5V TTL → 3.3V RPi):
+- **RPi RXD (Pin 22)**: Spannungsteiler 1kΩ (oben) / 2kΩ (unten) = 3.33V
+- **RPi TXD (Pin 8)**: Direkt verbunden (3.3V > 2.0V TTL-Schwelle)
+- **GND (Pin 14)**: Gemeinsame Masse
+
+Serieller Port: `/dev/ttyAMA0`
+
+In `/boot/config.txt`:
+```
+enable_uart=1
+dtoverlay=disable-bt
+gpio=17=op,dl
+```
+
+In `/boot/cmdline.txt` den Eintrag `console=serial0,115200` entfernen.
+
+### Netzschalter-Relais (optional)
+
+- **JQC-3FF-S-Z** 5V Relaismodul an **GPIO17** (Pin 11)
+- Active HIGH, **10kΩ Pull-Down** am GPIO-Pin
+- Ueberbrueckt den originalen Netzschalter (parallel geschaltet)
+- Der originale Schalter bleibt als manueller Override funktionsfaehig
+
+### Netzwerkverbindung
+
+Das Metallgehaeuse wirkt als Faradayscher Kaefig und blockiert das interne WLAN-Signal.
+
+**Empfohlene Loesung:** Mini-USB auf USB-A-Buchse Adapter + **TP-Link TL-WN722N** USB-WLAN-Stick mit SMA-Female-Buchse. Per SMA-Kabel wird die Antenne nach aussen gefuehrt.
+
+![TP-Link TL-WN722N](TL-WN722N.jpg)
+
+**Alternative:** USB-Ethernet-Adapter (ASIX AX88179 oder Realtek RTL8153) per OTG-Adapter.
 
 ---
 

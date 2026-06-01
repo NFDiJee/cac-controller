@@ -64,13 +64,72 @@ Communication uses RS-232C with the following parameters:
 - **Terminator**: Carriage Return (`\r`, ASCII 0x0D)
 - **Maximum Command Length**: 20 characters
 
-Physical connection: 15-pin D-Sub connector (RS-232C) on the changer, connected via a USB-to-Serial adapter to the Raspberry Pi.
+> **CAC-V3000 DIP Switch:** DIP switch 3 must be set to **ON** for 9600 baud. All DIP switches OFF = 4800 baud.
+
+| DIP 1 | DIP 2 | DIP 3 | DIP 4 | Baud Rate |
+|-------|-------|-------|-------|-----------|
+| OFF | OFF | OFF | OFF | 4800 bps |
+| OFF | OFF | **ON** | OFF | **9600 bps** |
+
+#### Option A: External USB-Serial Adapter
+
+Physical connection: 15-pin D-Sub connector (RS-232C) on the changer, connected via a USB-to-Serial adapter to the Raspberry Pi. Detected as `/dev/ttyUSB0`.
+
+#### Option B: Internal TTL Direct Connection
+
+When mounting the RPi Zero W internally, the serial signal is tapped directly at TTL level at the **RSIF board input** (handoff from MCDR board). Both boards are located under the **right side cover** (viewed from front).
+
+![RSIF Board](RSIF.jpg) ![MCDR Board](MCDR.jpg)
+
+Since the CAC-V3000 operates internally at 5V TTL and the RPi GPIO accepts max 3.3V, a voltage divider is required on the RXD input:
+
+```
+CAC RSIF "Tx" (5V TTL)
+        │
+       [1 kΩ]  ← R1
+        ├──────────→ RPi GPIO15 / RXD (Pin 22)   Voltage: 5V × 2/(1+2) = 3.33V ✓
+       [2 kΩ]  ← R2
+        │
+       GND
+
+RPi GPIO14 / TXD (Pin 8) ──→ CAC RSIF "Rx"    3.3V > 2.0V TTL threshold ✓
+RPi GND (Pin 14)          ──→ CAC RSIF "GND"
+```
+
+The serial port is `/dev/ttyAMA0`. In `/boot/config.txt`:
+```
+enable_uart=1
+dtoverlay=disable-bt
+```
+Remove `console=serial0,115200` from `/boot/cmdline.txt`.
 
 ### 1.3 Recommended Hardware
+
+#### Option A: External Connection
 
 - **Raspberry Pi**: Pi 3, Pi 4, Pi 5 or Zero 2 W (Pi Zero W also possible but slower)
 - **USB-Serial Adapter**: FTDI FT232R, Prolific PL2303 or CH340
 - **Operating System**: Raspberry Pi OS (Debian Bookworm or newer)
+
+#### Option B: Internal Installation (RPi Zero W)
+
+The Raspberry Pi Zero W can be fully mounted inside the CAC-V3000 chassis:
+
+- **Power Supply**: HLK-PM01 AC-DC converter (230V→5V, 600mA), tapped from the AC inlet (before the power switch), protected with T500mA fuse
+- **Serial**: Direct TTL connection at the RSIF board input (handoff from MCDR board), voltage divider 1kΩ/2kΩ for 5V→3.3V level shifting
+- **Relay**: JQC-3FF-S-Z 5V relay module on GPIO17 to power the CAC on/off (Active HIGH, 10kΩ pull-down), `gpio=17=op,dl` in `/boot/config.txt` for safe boot state
+- **Network**: Mini USB to USB-A female adapter + **TP-Link TL-WN722N** USB WiFi stick with SMA female connector, routed via SMA cable to an external antenna (the metal chassis acts as a Faraday cage)
+
+![TP-Link TL-WN722N](TL-WN722N.jpg)
+
+| Pin | GPIO | Function | Connection |
+|-----|------|----------|------------|
+| Pin 2 | 5V | Power | HLK-PM01 "+" / Relay module VCC |
+| Pin 6 | GND | Ground | HLK-PM01 "-" / Relay module GND |
+| Pin 8 | GPIO14 TXD | Serial TX | RSIF "Rx" (direct) |
+| Pin 11 | GPIO17 | Relay control | Relay module IN (+ 10k pull-down) |
+| Pin 14 | GND | Serial ground | RSIF "GND" |
+| Pin 22 | GPIO15 RXD | Serial RX | RSIF "Tx" (via 1k/2k divider) |
 
 ---
 
