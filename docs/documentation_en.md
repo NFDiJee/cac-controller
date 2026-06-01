@@ -322,6 +322,7 @@ The parser automatically recognizes: error codes, job status, player mode, disc 
 
 Manages the physical connection to the changer:
 
+- **Serial Port Detection**: The settings UI offers a dropdown with automatic detection of available serial ports (via a refresh button), instead of requiring manual path entry
 - **Connection Management**: Open, close, automatic reconnection every 5 seconds
 - **Command Queues**: Separate queue per player (1 and 2), with 200ms delay between commands
 - **Priority Commands**: `sendPriority()` for time-critical commands (inserted at front of queue)
