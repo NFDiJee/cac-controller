@@ -28,6 +28,7 @@ let _selectedSlots = new Set();
   connectWebSocket();
   loadLibrary();
   loadPlayModes();
+  checkPowerStatus();
 
   // Set language selector to stored preference
   const langSel = document.getElementById('settLanguage');
@@ -2467,6 +2468,7 @@ async function loadSettings() {
     document.getElementById('settNodeRoom').value = settings.node_room || '';
     document.getElementById('settNodeApiKey').value = settings.node_api_key || '';
     document.getElementById('settStatsMinSeconds').value = settings.stats_min_seconds || '30';
+    document.getElementById('settGpioPin').value = settings.gpio_relay_pin || '';
     document.getElementById('settLanguage').value = getStoredLanguagePref();
   } catch (err) { console.error(err); }
 }
@@ -2486,6 +2488,7 @@ async function saveSettings() {
       node_room: document.getElementById('settNodeRoom').value,
       node_api_key: document.getElementById('settNodeApiKey').value,
       stats_min_seconds: document.getElementById('settStatsMinSeconds').value,
+      gpio_relay_pin: document.getElementById('settGpioPin').value,
       language: document.getElementById('settLanguage').value,
     });
     toast(t('settings.saved'), 'success');
@@ -2497,6 +2500,38 @@ function generateApiKey() {
   let key = '';
   for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('settNodeApiKey').value = key;
+}
+
+// ── Power (GPIO Relay) ──
+
+async function checkPowerStatus() {
+  try {
+    const status = await api('/power/status');
+    const btn = document.getElementById('powerBtn');
+    if (!btn) return;
+    if (status.configured) {
+      btn.style.display = '';
+      btn.classList.toggle('on', status.on);
+      btn.title = status.on ? t('power.off') : t('power.on');
+    } else {
+      btn.style.display = 'none';
+    }
+  } catch {
+    const btn = document.getElementById('powerBtn');
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+async function togglePower() {
+  const btn = document.getElementById('powerBtn');
+  const isOn = btn && btn.classList.contains('on');
+  try {
+    const result = await api(isOn ? '/power/off' : '/power/on', 'POST');
+    if (btn && result.ok !== undefined) {
+      btn.classList.toggle('on', result.on);
+      btn.title = result.on ? t('power.off') : t('power.on');
+    }
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 // ── Backup ──

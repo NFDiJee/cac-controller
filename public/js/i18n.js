@@ -401,6 +401,13 @@ const translations = {
     'settings.nodeApiKey': 'API-Key',
     'settings.nodeGenKey': 'Generieren',
 
+    // GPIO / Power
+    'settings.gpioTitle': 'GPIO Relais (Power)',
+    'settings.gpioHint': 'GPIO-Pin fuer ein Relais zum Ein-/Ausschalten des CD-Wechslers. Leer = deaktiviert.',
+    'settings.gpioPin': 'GPIO-Pin',
+    'power.on': 'Einschalten',
+    'power.off': 'Ausschalten',
+
     // Terminal
     'terminal.title': 'Serielles Terminal',
     'terminal.placeholder': 'Befehl eingeben (z.B. ?X)',
@@ -818,6 +825,13 @@ const translations = {
     'settings.nodeRoomPh': 'e.g. Living Room',
     'settings.nodeApiKey': 'API Key',
     'settings.nodeGenKey': 'Generate',
+
+    // GPIO / Power
+    'settings.gpioTitle': 'GPIO Relay (Power)',
+    'settings.gpioHint': 'GPIO pin for a relay to switch the CD changer on/off. Empty = disabled.',
+    'settings.gpioPin': 'GPIO Pin',
+    'power.on': 'Turn on',
+    'power.off': 'Turn off',
 
     // Terminal
     'terminal.title': 'Serial Terminal',

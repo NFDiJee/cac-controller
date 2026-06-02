@@ -455,6 +455,14 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: var(--accent);
   color: var(--accent);
 }
+.power-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--red); background: var(--red-dim); color: var(--red);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s; padding: 0; flex-shrink: 0;
+}
+.power-btn:hover { opacity: 0.8; }
+.power-btn.on { color: var(--green); border-color: var(--green); background: var(--green-dim); }
 
 /* ── Modal ── */
 .modal-overlay {
