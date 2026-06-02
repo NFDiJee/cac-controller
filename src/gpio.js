@@ -14,10 +14,23 @@ export async function initGpio() {
   const pin = getConfiguredPin();
   if (!pin) return;
   try {
+    // Read current pin state before setting as output (to preserve relay state across restarts)
+    let wasHigh = false;
+    try {
+      const out = execSync(`pinctrl get ${pin}`, { encoding: 'utf-8' });
+      wasHigh = out.includes('hi');
+    } catch { /* pin may not be readable yet */ }
+
     execSync(`pinctrl set ${pin} op`, { stdio: 'ignore' });
+
+    // Restore previous state (pinctrl set op resets to LOW)
+    if (wasHigh) {
+      execSync(`pinctrl set ${pin} dh`, { stdio: 'ignore' });
+    }
+
     available = true;
     initialized = true;
-    console.log(`[GPIO] Relay initialized on GPIO${pin} (pinctrl)`);
+    console.log(`[GPIO] Relay initialized on GPIO${pin} (pinctrl), state: ${wasHigh ? 'ON' : 'OFF'}`);
   } catch (err) {
     console.warn(`[GPIO] pinctrl not available: ${err.message}`);
     available = false;
@@ -53,8 +66,6 @@ export function getPowerStatus() {
 }
 
 export function cleanupGpio() {
-  const pin = getConfiguredPin();
-  if (pin && available) {
-    try { execSync(`pinctrl set ${pin} dl`); } catch {}
-  }
+  // Do NOT turn off the relay on shutdown/restart — preserve power state
+  // The relay state persists at the hardware level
 }
